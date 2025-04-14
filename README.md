@@ -1,3 +1,4 @@
+
 # 🚀 Jogo de Navinha Espacial em Java
 
 Um jogo 2D estilo "navinha" desenvolvido em Java utilizando `JPanel` para gráficos, onde o jogador controla uma nave, atira em inimigos e tenta sobreviver ao maior número possível de colisões!
@@ -13,7 +14,7 @@ Um jogo 2D estilo "navinha" desenvolvido em Java utilizando `JPanel` para gráfi
 
 ## 📷 Captura de Tela
 
-![Imagem do Jogo](res/imagem-jogo.jpg)
+![Imagem do Jogo](src/imagem-jogo.jpg)
 
 ## 🛠️ Tecnologias Utilizadas
 
@@ -24,18 +25,21 @@ Um jogo 2D estilo "navinha" desenvolvido em Java utilizando `JPanel` para gráfi
 
 ## 📁 Estrutura do Projeto
 
-meu_jogo/ 
+```
+meu_jogo/
 ├── res/  
-├── background.png 
-├── nave.png 
-├── inimigo.png 
-└── GAMEOVER.png
-├── Fase.java
-├── Player.java
-├── Tiro.java
-├── Enemy1.java
-└── Main.java
-
+│   ├── background.png 
+│   ├── nave.png 
+│   ├── inimigo.png 
+│   └── GAMEOVER.png
+├── src/
+│   ├── imagem-jogo.jpg
+│   ├── Fase.java
+│   ├── Player.java
+│   ├── Tiro.java
+│   ├── Enemy1.java
+│   └── Main.java
+```
 
 ## ▶️ Como Jogar
 
@@ -57,7 +61,7 @@ meu_jogo/
 ## 🧠 Autor
 
 **Jamerson Rafael da Silva Viana**  
-📧 [jamersonrafael.sv@g,mail.com]  
+📧 [jamersonrafael.sv@gmail.com]  
 📅 Projeto iniciado em 2025
 
 ---
