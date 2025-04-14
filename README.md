@@ -13,7 +13,7 @@ Um jogo 2D estilo "navinha" desenvolvido em Java utilizando `JPanel` para gráfi
 
 ## 📷 Captura de Tela
 
-*(adicione aqui uma imagem do jogo rodando, como `screenshot.png`)*
+![Imagem do Jogo](res/imagem-jogo.png)
 
 ## 🛠️ Tecnologias Utilizadas
 
