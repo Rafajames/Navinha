@@ -1,18 +1,65 @@
-## Getting Started
+# 🚀 Jogo de Navinha Espacial em Java
 
-Welcome to the VS Code Java world. Here is a guideline to help you get started to write Java code in Visual Studio Code.
+Um jogo 2D estilo "navinha" desenvolvido em Java utilizando `JPanel` para gráficos, onde o jogador controla uma nave, atira em inimigos e tenta sobreviver ao maior número possível de colisões!
 
-## Folder Structure
+## 🎮 Funcionalidades
 
-The workspace contains two folders by default, where:
+- Controle da nave com teclado (setas direcionais)
+- Tiros com colisões nos inimigos
+- Inimigos gerados aleatoriamente com movimento automático
+- Tela de **Game Over** ao colidir com um inimigo
+- Sons (em desenvolvimento)
+- Placar e sistema de vidas (em desenvolvimento)
 
-- `src`: the folder to maintain sources
-- `lib`: the folder to maintain dependencies
+## 📷 Captura de Tela
 
-Meanwhile, the compiled output files will be generated in the `bin` folder by default.
+![Imagem do Jogo](res/imagem-jogo.jpg)
 
-> If you want to customize the folder structure, open `.vscode/settings.json` and update the related settings there.
+## 🛠️ Tecnologias Utilizadas
 
-## Dependency Management
+- Java (JDK 8+)
+- Swing / AWT (`JPanel`, `Graphics2D`, `Timer`, etc.)
+- Orientação a Objetos (OOP)
+- Imagens PNG e colisões por `Rectangle`
 
-The `JAVA PROJECTS` view allows you to manage your dependencies. More details can be found [here](https://github.com/microsoft/vscode-java-dependency#manage-dependencies).
+## 📁 Estrutura do Projeto
+
+meu_jogo/ 
+├── res/  
+├── background.png 
+├── nave.png 
+├── inimigo.png 
+└── GAMEOVER.png
+├── Fase.java
+├── Player.java
+├── Tiro.java
+├── Enemy1.java
+└── Main.java
+
+
+## ▶️ Como Jogar
+
+1. Compile todos os arquivos `.java`.
+2. Execute a classe principal `Main.java`.
+3. Use as setas do teclado para mover a nave.
+4. Pressione **espaço** para atirar.
+5. Evite colisões com os inimigos!
+6. Ao perder, a tela de **Game Over** será exibida.
+
+## 🚧 Funcionalidades Futuras
+
+- ✅ Sistema de pontuação
+- ✅ Sistema de vidas
+- ✅ Tela inicial com botão "Jogar"
+- ✅ Sons de tiro e explosão
+- ⏳ Salvamento de nome do jogador com pontuação
+
+## 🧠 Autor
+
+**Jamerson Rafael da Silva Viana**  
+📧 [jamersonrafael.sv@g,mail.com]  
+📅 Projeto iniciado em 2025
+
+---
+
+Feito com 💙 em Java.
