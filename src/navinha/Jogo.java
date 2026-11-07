@@ -168,6 +168,7 @@ public class Jogo extends JPanel {
         estado = e;
         timer = 0;
         input.limpar();
+        if (!emPartida()) fundo.setHiperespaco(0);
     }
 
     private void atualizarMenu() {
@@ -752,7 +753,7 @@ public class Jogo extends JPanel {
             default:         desenharPartida(g); break;
         }
 
-        if (avisoTimer > 0 && aviso != null) Hud.aviso(g, aviso, corAviso, avisoTimer);
+        if (avisoTimer > 0 && aviso != null && !pausado) Hud.aviso(g, aviso, corAviso, avisoTimer);
         Toolkit.getDefaultToolkit().sync();
     }
 

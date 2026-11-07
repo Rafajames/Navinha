@@ -4,6 +4,18 @@ Jogo de navinha 2D em Java (Swing/AWT): escolha sua nave, atravesse 5 fases, cum
 
 ![Batalha contra a Rainha Carmesim](src/res/imagem-jogo.jpg)
 
+## 📱 Versão web (celular e PC)
+
+A pasta `docs/` tem o jogo inteiro em HTML/JavaScript, com instalação como app (PWA):
+
+- **Celular:** deslize o dedo para mover — a nave atira enquanto o dedo está na tela. Botões ★ (especial), 💣 (bomba) e ❚❚ (pausa) no canto.
+- **PC:** mesmos controles do teclado da versão Java.
+- **Instalar:** botão "Baixar app" no menu (Android/Chrome) ou Compartilhar → Adicionar à Tela de Início (iPhone). Depois de instalado, funciona sem internet.
+- **Atualizar:** ao publicar uma versão nova, o jogo mostra "Nova versão disponível — Atualizar".
+
+Para publicar: em *Settings → Pages* do repositório, escolha a branch `main` e a pasta `/docs`. O jogo fica em `https://rafajames.github.io/Navinha/`.
+A cada atualização, aumente o número de `VERSAO` em `docs/sw.js` (e em `docs/game.js`) para os aparelhos receberem o aviso.
+
 ## ▶️ Como rodar
 
 **Mais fácil:** com Java 8 ou superior instalado, dê dois cliques em `Navinha.jar` ou rode:
