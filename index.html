@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Navinha Espacial</title>
+<meta name="description" content="Jogo de navinha espacial: 4 naves, poderes, 5 fases e chefes. Funciona no celular e offline.">
+<meta name="theme-color" content="#0a0c22">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Navinha">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<style>
+  :root { --bg: #04050f; --painel: rgba(8, 10, 24, .92); --borda: rgba(120, 150, 255, .35); --amarelo: #ffd650; --texto: #eef0ff; --cinza: #aab0c8; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; touch-action: none;
+    -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--texto); }
+  #jogo { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; background: #000; }
+
+  .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; padding: 16px; box-sizing: border-box; }
+  .overlay.ativo { display: flex; }
+  .caixa { background: var(--painel); border: 2px solid var(--borda); border-radius: 18px; padding: 22px 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  .caixa h2 { margin: 0 0 6px; color: var(--amarelo); font-size: 26px; }
+  .caixa p { margin: 6px 0 14px; color: var(--cinza); font-size: 15px; line-height: 1.4; }
+  .caixa input { width: 100%; box-sizing: border-box; font-size: 22px; font-weight: 700; padding: 12px; border-radius: 12px; border: 2px solid var(--borda);
+    background: #0b0e24; color: #fff; text-align: center; outline: none; -webkit-user-select: text; user-select: text; }
+  .caixa input:focus { border-color: var(--amarelo); }
+  .botao { display: inline-block; margin-top: 14px; padding: 12px 22px; font-size: 17px; font-weight: 800; border-radius: 12px; border: 0;
+    background: var(--amarelo); color: #1a1400; cursor: pointer; min-width: 140px; }
+  .botao.sec { background: transparent; color: var(--cinza); border: 2px solid var(--borda); }
+
+  #girar { background: rgba(4,5,15,.96); flex-direction: column; text-align: center; }
+  #girar .icone { font-size: 64px; animation: girar 2s ease-in-out infinite; }
+  @keyframes girar { 0%, 30% { transform: rotate(0); } 60%, 100% { transform: rotate(90deg); } }
+  #girar h2 { color: var(--amarelo); margin: 16px 0 6px; }
+  #girar p { color: var(--cinza); margin: 0 0 8px; }
+
+  #aviso-atualizacao { position: fixed; left: 50%; bottom: max(14px, env(safe-area-inset-bottom)); transform: translateX(-50%);
+    z-index: 20; display: none; align-items: center; gap: 12px; background: var(--painel); border: 2px solid var(--amarelo);
+    border-radius: 14px; padding: 10px 14px; font-weight: 700; font-size: 15px; box-shadow: 0 6px 30px rgba(0,0,0,.6); white-space: nowrap; }
+  #aviso-atualizacao.ativo { display: flex; }
+  #aviso-atualizacao button { margin: 0; padding: 8px 14px; min-width: 0; font-size: 15px; }
+</style>
+</head>
+<body>
+<canvas id="jogo" aria-label="Navinha Espacial"></canvas>
+
+<!-- nome para o ranking: input de verdade, para o teclado do celular aparecer -->
+<div id="tela-nome" class="overlay">
+  <form class="caixa" id="form-nome" autocomplete="off">
+    <h2>NOVO RECORDE!</h2>
+    <p id="nome-pontos">0 pontos</p>
+    <input id="campo-nome" maxlength="12" placeholder="Seu nome" enterkeyhint="done" autocapitalize="words">
+    <button class="botao" type="submit">Salvar</button>
+  </form>
+</div>
+
+<!-- instruções para instalar no iPhone (o Safari não tem botão automático) -->
+<div id="tela-ios" class="overlay">
+  <div class="caixa">
+    <h2>Instalar no iPhone</h2>
+    <p>No Safari, toque em <b>Compartilhar</b> <span style="font-size:20px">⎋</span> e depois em <b>Adicionar à Tela de Início</b>.<br><br>
+       O jogo passa a abrir em tela cheia e funciona sem internet.</p>
+    <button class="botao" type="button" onclick="this.closest('.overlay').classList.remove('ativo')">Entendi</button>
+  </div>
+</div>
+
+<div id="girar" class="overlay">
+  <div class="icone">📱</div>
+  <h2>Gire o celular</h2>
+  <p>O jogo fica melhor na horizontal.</p>
+  <button class="botao sec" type="button" id="jogar-assim">Jogar assim mesmo</button>
+</div>
+
+<div id="aviso-atualizacao">
+  <span>✨ Nova versão disponível</span>
+  <button class="botao" type="button" id="botao-atualizar">Atualizar</button>
+</div>
+
+<script src="game.js"></script>
+</body>
+</html>
