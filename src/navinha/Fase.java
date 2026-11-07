@@ -1,296 +1,130 @@
 package navinha;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import java.util.*;
-import javax.swing.*;
-import javax.swing.Timer;
+import java.awt.Color;
 
+/**
+ * Definição das 5 fases: inimigos que aparecem, meta de abates, desafio opcional e chefe.
+ */
+public class Fase {
 
-import java.util.List;
-import java.awt.Rectangle;
+    public enum Desafio {
+        COMBO("Faça um combo de %d", 15),
+        ASTEROIDES("Destrua %d asteroides", 12),
+        SEM_DANO("Não leve nenhum dano", 0),
+        SEM_BOMBA("Não use bombas", 0),
+        CHEFE_RAPIDO("Derrote o chefe em até %ds", 75);
 
-public class Fase extends JPanel implements ActionListener, KeyListener {
+        public final String texto;
+        public final int meta;
 
-    private Image fundo;
-    private Player player;
-    private Timer timer;
-    private List<Enemy1> enemy1;
-    private List<Stars> stars;
-    private boolean emJogo = false;
-    private boolean gameOver = false;
-    private boolean telaInicial = true;
-    private int pontuacao = 0;
-    private int vidas = 3;
-    private List<String> records;
-    private String nomeJogador = "";
+        Desafio(String texto, int meta) {
+            this.texto = texto;
+            this.meta = meta;
+        }
 
-    private static final String RECORDS_FILE = "records.txt";
-
-    public Fase() {
-        setFocusable(true);
-        setDoubleBuffered(true);
-        addKeyListener(this);
-        addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                iniciarJogoSeNecessario();
-            }
-        });
-
-        ImageIcon referencia = new ImageIcon(getClass().getResource("/res/background.png"));
-        fundo = referencia.getImage();
-
-        player = new Player();
-        player.load();
-
-        inicializaInimigos();
-        inicializaEstrelas();
-        Som.tocarLoop("/res/musica_fundo.wav");
-   
-        timer = new Timer(5, this);
-        timer.start();
-
-        loadRecords();
-    }
-
-    private void iniciarJogoSeNecessario() {
-        if (telaInicial && !emJogo) {
-            nomeJogador = JOptionPane.showInputDialog("Digite seu nome:");
-            if (nomeJogador == null || nomeJogador.trim().isEmpty()) {
-                nomeJogador = "Anônimo";
-            }
-            telaInicial = false;
-            emJogo = true;
-            requestFocusInWindow();
+        public String descricao() {
+            return meta > 0 ? String.format(texto, meta) : texto;
         }
     }
 
-    public void inicializaInimigos() {
-        enemy1 = new ArrayList<>();
-        for (int i = 0; i < 40; i++) {
-            int x = (int) (Math.random() * 800 + 1024);
-            int y = (int) (Math.random() * 600);
-            enemy1.add(new Enemy1(x, y));
+    public static class ChefeInfo {
+        public final String nome;
+        public final double vida;
+        public final int[] padroes;
+        public final InimigoTipo invoca;
+        public final int tamanho;
+        public final float matiz, sat, bri;
+
+        ChefeInfo(String nome, double vida, int tamanho, InimigoTipo invoca, float matiz, float sat, float bri, int... padroes) {
+            this.nome = nome;
+            this.vida = vida;
+            this.tamanho = tamanho;
+            this.invoca = invoca;
+            this.matiz = matiz;
+            this.sat = sat;
+            this.bri = bri;
+            this.padroes = padroes;
         }
     }
 
-    public void inicializaEstrelas() {
-        stars = new ArrayList<>();
-        for (int i = 0; i < 50; i++) {
-            int x = (int) (Math.random() * 1024);
-            int y = (int) (Math.random() * 768);
-            stars.add(new Stars(x, y));
-        }
+    public final int numero;
+    public final String nome;
+    public final InimigoTipo[] tipos;
+    public final int[] pesos;
+    public final int meta;               // abates para chamar o chefe
+    public final int intervalo;          // quadros entre surgimentos
+    public final double velocidade;      // multiplicador de dificuldade base
+    public final Desafio desafio;
+    public final ChefeInfo chefe;
+    public final Color ceuTopo, ceuBase, nebulosa1, nebulosa2;
+
+    private Fase(int numero, String nome, InimigoTipo[] tipos, int[] pesos, int meta, int intervalo, double velocidade,
+                 Desafio desafio, ChefeInfo chefe, Color ceuTopo, Color ceuBase, Color nebulosa1, Color nebulosa2) {
+        this.numero = numero;
+        this.nome = nome;
+        this.tipos = tipos;
+        this.pesos = pesos;
+        this.meta = meta;
+        this.intervalo = intervalo;
+        this.velocidade = velocidade;
+        this.desafio = desafio;
+        this.chefe = chefe;
+        this.ceuTopo = ceuTopo;
+        this.ceuBase = ceuBase;
+        this.nebulosa1 = nebulosa1;
+        this.nebulosa2 = nebulosa2;
     }
 
-    @Override
-    public void paint(Graphics g) {
-        super.paint(g);
-        Graphics2D graficos = (Graphics2D) g;
-        graficos.drawImage(fundo, 0, 0, null);
-
-        if (telaInicial) {
-            graficos.setColor(Color.WHITE);
-            graficos.setFont(new Font("Arial", Font.BOLD, 40));
-            graficos.drawString("SPACE WAR", 360, 300);
-            graficos.setFont(new Font("Arial", Font.PLAIN, 20));
-            graficos.drawString("Clique com o mouse ou pressione qualquer tecla para começar", 250, 340);
-        } else if (emJogo) {
-            graficos.drawImage(player.getImage(), player.getX(), player.getY(), this);
-
-            for (Tiro tiro : player.getTiros()) {
-                graficos.drawImage(tiro.getImage(), tiro.getX(), tiro.getY(), this);
-            }
-
-            for (Enemy1 in : enemy1) {
-                graficos.drawImage(in.getImage(), in.getX(), in.getY(), this);
-            }
-
-            for (Stars star : stars) {
-                graficos.setColor(Color.WHITE);
-                graficos.fillOval(star.getX(), star.getY(), 2, 2);
-            }
-
-            graficos.setColor(Color.YELLOW);
-            graficos.setFont(new Font("Arial", Font.BOLD, 20));
-            graficos.drawString("PONTOS: " + pontuacao, 10, 20);
-            graficos.drawString("VIDAS: " + vidas, 10, 45);
-
-        } else if (gameOver) {
-            graficos.setColor(Color.RED);
-            graficos.setFont(new Font("Arial", Font.BOLD, 30));
-            graficos.drawString("FIM DE JOGO", 350, 300);
-
-            graficos.setColor(Color.YELLOW);
-            graficos.setFont(new Font("Arial", Font.PLAIN, 20));
-            graficos.drawString("Jogador: " + nomeJogador, 360, 330);
-            graficos.drawString("Sua pontuação: " + pontuacao, 360, 360);
-
-            graficos.drawString("Recordes:", 400, 390);
-            int y = 420;
-            for (int i = 0; i < Math.min(10, records.size()); i++) {
-                if (i == 0) {
-                    graficos.setColor(Color.ORANGE);
-                    graficos.setFont(new Font("Arial", Font.BOLD, 22));
-                    graficos.drawString("🥇 " + (i + 1) + "º - " + records.get(i), 360, y);
-                } else {
-                    graficos.setColor(Color.WHITE);
-                    graficos.setFont(new Font("Arial", Font.PLAIN, 18));
-                    graficos.drawString((i + 1) + "º - " + records.get(i), 370, y);
-                }
-                y += 25;
-            }
+    public InimigoTipo sortearTipo() {
+        int total = 0;
+        for (int p : pesos) total += p;
+        int r = (int) (Math.random() * total);
+        for (int i = 0; i < tipos.length; i++) {
+            r -= pesos[i];
+            if (r < 0) return tipos[i];
         }
-
-        Toolkit.getDefaultToolkit().sync();
-        g.dispose();
+        return tipos[0];
     }
 
-    @Override
-    public void actionPerformed(ActionEvent e) {
-        if (!emJogo) {
-            repaint();
-            return;
-        }
+    private static InimigoTipo[] t(InimigoTipo... t) { return t; }
+    private static int[] p(int... p) { return p; }
 
-        if (enemy1.size() < 20) {
-            int x = (int) (Math.random() * 800 + 1024);
-            int y = (int) (Math.random() * 600);
-            enemy1.add(new Enemy1(x, y));
-        }
+    public static final Fase[] FASES = {
+            new Fase(1, "Cinturão de Órion",
+                    t(InimigoTipo.BASICO, InimigoTipo.ZIGUE), p(7, 3),
+                    25, 55, 1.0, Desafio.COMBO,
+                    new ChefeInfo("Nave-Mãe Ômega", 240, 170, InimigoTipo.BASICO, 0f, 1f, 1f,
+                            Chefe.LEQUE, Chefe.INVOCAR, Chefe.ANEL),
+                    new Color(4, 6, 22), new Color(10, 16, 40), new Color(40, 70, 160), new Color(90, 40, 140)),
 
-        List<Tiro> tiros = player.getTiros();
-        Iterator<Tiro> itTiros = tiros.iterator();
-        while (itTiros.hasNext()) {
-            Tiro tiro = itTiros.next();
-            if (tiro.isVisivel()) {
-                tiro.update();
-            } else {
-                itTiros.remove();
-            }
-        }
+            new Fase(2, "Campo de Asteroides",
+                    t(InimigoTipo.ASTEROIDE, InimigoTipo.BASICO, InimigoTipo.KAMIKAZE), p(5, 3, 2),
+                    30, 48, 1.08, Desafio.ASTEROIDES,
+                    new ChefeInfo("Devorador de Rochas", 380, 180, InimigoTipo.ASTEROIDE, -0.42f, 0.8f, 0.9f,
+                            Chefe.LEQUE, Chefe.ESPIRAL, Chefe.INVOCAR, Chefe.ANEL),
+                    new Color(14, 10, 8), new Color(30, 22, 16), new Color(140, 90, 40), new Color(80, 60, 60)),
 
-        Iterator<Enemy1> itInimigos = enemy1.iterator();
-        while (itInimigos.hasNext()) {
-            Enemy1 inimigo = itInimigos.next();
-            if (inimigo.isVisivel()) {
-                inimigo.update();
-            } else {
-                itInimigos.remove();
-                pontuacao += 10;
-            }
-        }
+            new Fase(3, "Nebulosa Carmesim",
+                    t(InimigoTipo.ATIRADOR, InimigoTipo.ZIGUE, InimigoTipo.KAMIKAZE, InimigoTipo.BASICO), p(3, 3, 3, 2),
+                    35, 44, 1.15, Desafio.SEM_DANO,
+                    new ChefeInfo("Rainha Carmesim", 520, 185, InimigoTipo.KAMIKAZE, 0.48f, 1.2f, 1f,
+                            Chefe.ESPIRAL, Chefe.RAJADA, Chefe.INVOCAR, Chefe.ANEL),
+                    new Color(20, 4, 12), new Color(40, 8, 20), new Color(180, 30, 70), new Color(120, 20, 120)),
 
-        for (Stars star : stars) {
-            star.update();
-        }
+            new Fase(4, "Fronteira Sombria",
+                    t(InimigoTipo.TANQUE, InimigoTipo.ATIRADOR, InimigoTipo.KAMIKAZE, InimigoTipo.ASTEROIDE, InimigoTipo.ZIGUE),
+                    p(1, 3, 3, 2, 2),
+                    40, 42, 1.22, Desafio.SEM_BOMBA,
+                    new ChefeInfo("Sentinela Sombria", 680, 195, InimigoTipo.ATIRADOR, 0.30f, 0.9f, 0.7f,
+                            Chefe.LEQUE, Chefe.RAJADA, Chefe.MURO, Chefe.ANEL),
+                    new Color(6, 4, 14), new Color(16, 10, 28), new Color(80, 40, 140), new Color(30, 90, 110)),
 
-        player.update();
-
-        Rectangle rPlayer = player.getBounds();
-        List<Enemy1> inimigosParaRemover = new ArrayList<>();
-        List<Tiro> tirosParaRemover = new ArrayList<>();
-
-        for (Tiro tiro : tiros) {
-            Rectangle rTiro = tiro.getBounds();
-            for (Enemy1 inimigo : enemy1) {
-                Rectangle rInimigo = inimigo.getBounds();
-                if (rTiro.intersects(rInimigo)) {
-                    Som.tocar("/res/som_explosao.wav");
-                    tirosParaRemover.add(tiro);
-                    inimigosParaRemover.add(inimigo);
-                    pontuacao += 10;
-                }
-            }
-        }
-
-        tiros.removeAll(tirosParaRemover);
-        enemy1.removeAll(inimigosParaRemover);
-
-        for (Enemy1 inimigo : enemy1) {
-            if (rPlayer.intersects(inimigo.getBounds())) {
-                inimigo.setVisivel(false);
-                vidas--;
-                if (vidas <= 0) {
-                    player.setVisivel(false);
-                    emJogo = false;
-                    gameOver = true;
-                    atualizarRecordes();
-                }
-            }
-        }
-
-        repaint();
-    }
-
-    @Override
-    public void keyPressed(KeyEvent e) {
-        if (telaInicial && !emJogo) {
-            iniciarJogoSeNecessario();
-        } else if (gameOver && e.getKeyCode() == KeyEvent.VK_ENTER) {
-            reiniciarJogo();
-        } else if (emJogo) {
-            player.keyPressed(e);
-        }
-    }
-
-    @Override
-    public void keyReleased(KeyEvent e) {
-        if (emJogo) {
-            player.keyReleased(e);
-        }
-    }
-
-    @Override
-    public void keyTyped(KeyEvent e) {}
-
-    private void loadRecords() {
-        records = new ArrayList<>();
-        File file = new File(RECORDS_FILE);
-        if (file.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    records.add(line);
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private void atualizarRecordes() {
-        records.add(nomeJogador + " - " + pontuacao);
-        records.sort((a, b) -> {
-            try {
-                int pontosA = Integer.parseInt(a.substring(a.lastIndexOf('-') + 1).trim());
-                int pontosB = Integer.parseInt(b.substring(b.lastIndexOf('-') + 1).trim());
-                return Integer.compare(pontosB, pontosA);
-            } catch (NumberFormatException ex) {
-                return 0;
-            }
-        });
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(RECORDS_FILE))) {
-            for (int i = 0; i < Math.min(10, records.size()); i++) {
-                writer.write(records.get(i));
-                writer.newLine();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void reiniciarJogo() {
-        player = new Player();
-        player.load();
-        inicializaInimigos();
-        inicializaEstrelas();
-        vidas = 3;
-        pontuacao = 0;
-        emJogo = true;
-        gameOver = false;
-    }
+            new Fase(5, "Núcleo Alienígena",
+                    t(InimigoTipo.BASICO, InimigoTipo.ZIGUE, InimigoTipo.ATIRADOR, InimigoTipo.KAMIKAZE, InimigoTipo.TANQUE, InimigoTipo.ASTEROIDE),
+                    p(2, 3, 3, 3, 1, 1),
+                    45, 38, 1.3, Desafio.CHEFE_RAPIDO,
+                    new ChefeInfo("Imperador Zorg", 1000, 230, InimigoTipo.KAMIKAZE, -0.33f, 1.3f, 1.15f,
+                            Chefe.LEQUE, Chefe.ESPIRAL, Chefe.RAJADA, Chefe.INVOCAR, Chefe.ANEL, Chefe.MURO),
+                    new Color(2, 14, 10), new Color(6, 30, 22), new Color(30, 160, 100), new Color(160, 140, 30)),
+    };
 }

@@ -1,20 +1,27 @@
 package navinha;
 
 import javax.swing.JFrame;
+import javax.swing.SwingUtilities;
 
+/**
+ * Ponto de entrada do jogo Navinha Espacial.
+ */
 public class Main extends JFrame {
 
     public Main() {
-        add(new Fase());
+        Jogo jogo = new Jogo();
+        add(jogo);
         setTitle("Navinha Espacial");
-        setSize(1024, 768);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setLocationRelativeTo(null);
         setResizable(false);
+        pack();                       // ajusta a janela exatamente ao tamanho do painel (1024x768)
+        setLocationRelativeTo(null);
         setVisible(true);
+        jogo.iniciar();
     }
 
     public static void main(String[] args) {
-        new Main();
+        System.setProperty("sun.java2d.opengl", "true");
+        SwingUtilities.invokeLater(Main::new);
     }
 }
