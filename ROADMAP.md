@@ -14,6 +14,14 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.1 (entregue)
+
+**Ajudas e tiros**
+- Itens com tempo: Bolha (8s sem dano), Invencível (6s, encostar destrói), Canhão pesado (10s de tiros grandes que atravessam), Ímã (12s puxando tudo), Câmera lenta (6s)
+- Reparo: recupera 1 vida perdida (ou dá escudo se estiver com tudo cheio)
+- 5 tipos de tiro com 5 níveis: Laser, Onda, Leque, Teleguiado, Elétrico — item em losango; mesmo tipo sobe nível, outro troca mantendo o nível
+- HUD mostra a arma atual e os itens ativos com contagem; "Como jogar" com abas
+
 ## ✅ Versão 3.0 (entregue)
 
 **Arte nova** (pixel art gerada por código em `docs/js/arte.js` — prancha em `docs/dev/prancha.html`)
@@ -35,11 +43,6 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 ---
 
 ## 📋 Próximos pacotes (a escolher)
-
-### 2 · Ajudas e tiros
-- Escudo por tempo (8s), invencibilidade (6s), canhão maior temporário
-- Tipos de tiro trocáveis com 5 níveis: laser, onda, leque, teleguiado, elétrico
-- Ímã temporário, câmera lenta, cura
 
 ### 4 · Fases e desafios
 - Mapa de setores com 10 fases e 3 estrelas por fase

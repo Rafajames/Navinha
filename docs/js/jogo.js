@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.0.0';
+const VERSAO = '3.1.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -68,9 +68,10 @@ const Som = {
     if (!this.ac) return;                       // ainda sem interação: começa no primeiro toque
     if (this.musica) this.musica.pause();
     this.musica = new Audio(`assets/${faixa}.mp3`);
-    this.musica.loop = true; this.musica.volume = 0.55 * Config.musica;
+    this.musica.loop = true; this.musica.volume = 0.55 * Config.musica; this.musica.playbackRate = this.ritmo || 1; this.musica.preservesPitch = false;
     if (!this.mudo) this.musica.play().catch(() => {});
   },
+  velocidadeMusica(v) { this.ritmo = v; if (this.musica) { this.musica.playbackRate = v; this.musica.preservesPitch = false; } },
   aplicarVolumes() { if (this.mestre) this.mestre.gain.value = Config.efeitos; if (this.musica) this.musica.volume = 0.55 * Config.musica; },
   alternar() {
     this.mudo = !this.mudo; armaz.gravar('navinha.mudo', this.mudo ? '1' : '0');
@@ -377,7 +378,7 @@ class Tiro {
   constructor(x, y, vx, vy, dano, inimigo, tipo = 'NORMAL') {
     Object.assign(this, { x, y, vx, vy, dano, inimigo, tipo });
     this.perfuracoes = 0; this.atingidos = new Set(); this.vivo = true; this.idade = 0; this.tam = 1;
-    this.raio = inimigo ? 6 : tipo === 'MISSIL' ? 5 : tipo === 'OBUS' ? 12 : 4;
+    this.raio = inimigo ? 6 : tipo === 'MISSIL' ? 5 : tipo === 'OBUS' ? 12 : tipo === 'ONDA' ? 6 : 4;
     this.cor = inimigo ? [255, 70, 160] : [255, 230, 80];
   }
   update(j) {
@@ -393,10 +394,15 @@ class Tiro {
       if (this.idade > (ini ? 360 : 240)) this.vivo = false;
     }
     if (this.tipo === 'OBUS' && this.x > W - 10) { this.vivo = false; j.explodirObus(this); }
+    if (this.tipo === 'ONDA') { this.x += this.vx; this.y = this.baseY + Math.sin(this.idade * 0.16 + this.fase) * this.amp; return this.foraDaTela(); }
     this.x += this.vx; this.y += this.vy;
+    this.foraDaTela();
+  }
+  foraDaTela() {
     if (this.x < -40 || this.x > W + 40 || this.y < -40 || this.y > H + 40) this.vivo = false;
   }
   bounds() {
+    if (this.tipo === 'LASER') { const w = 40, h = 3 + this.tam * 2; return { x: this.x - w / 2, y: this.y - h / 2, w, h }; }
     if (this.tipo === 'NORMAL' && !this.inimigo) { const w = 18 * this.tam, h = 6 * this.tam; return { x: this.x - w / 2, y: this.y - h / 2, w, h }; }
     const r = this.inimigo ? this.raio - 2 : this.raio;
     return { x: this.x - r, y: this.y - r, w: r * 2, h: r * 2 };
@@ -411,6 +417,16 @@ class Tiro {
     g.save(); g.translate(this.x, this.y); g.rotate(Math.atan2(this.vy, this.vx));
     if (this.tipo === 'MISSIL') { g.fillStyle = '#e6e6f0'; g.fillRect(-8, -2, 14, 4); g.fillStyle = '#ff503c'; g.fillRect(4, -2, 4, 4); g.fillStyle = '#ffc850'; g.fillRect(-11, -1, 3, 2); }
     else if (this.tipo === 'DRONE') { g.fillStyle = '#7af5ff'; g.fillRect(-6, -1.5, 12, 3); }
+    else if (this.tipo === 'LASER') {
+      const h = 3 + this.tam * 2;
+      g.fillStyle = rgba(this.cor, 0.35); g.fillRect(-22, -h / 2 - 2, 44, h + 4);
+      g.fillStyle = rgba(this.cor, 1); g.fillRect(-20, -h / 2, 40, h);
+      g.fillStyle = '#ffffff'; g.fillRect(-18, -Math.max(1, h / 4), 36, Math.max(1, h / 2));
+    }
+    else if (this.tipo === 'ONDA') {
+      g.fillStyle = rgba(this.cor, 0.4); g.fillRect(-7, -7, 14, 14);
+      g.fillStyle = rgba(this.cor, 1); g.fillRect(-5, -5, 10, 10); g.fillStyle = '#efffef'; g.fillRect(-2, -2, 4, 4);
+    }
     else {
       const w = 18 * this.tam, h = 6 * this.tam;
       g.fillStyle = rgba(this.cor, 0.45); g.fillRect(-w / 2 - 3, -h / 2, w + 3, h);
@@ -422,16 +438,40 @@ class Tiro {
 }
 
 // ============================================================ itens
+// tipos de tiro: o item tem formato de losango; pegar o mesmo tipo sobe o nível, outro tipo troca e mantém o nível
+const ARMAS = {
+  PADRAO:     { id: 'PADRAO', nome: 'Vulcão', cor: [255, 230, 80], desc: 'Tiro padrão da nave' },
+  LASER:      { id: 'LASER', nome: 'Laser', letra: 'L', cor: [95, 240, 255], desc: 'Raio rápido que atravessa tudo' },
+  ONDA:       { id: 'ONDA', nome: 'Onda', letra: 'O', cor: [120, 255, 140], desc: 'Tiros em zigue-zague que cobrem a tela' },
+  LEQUE:      { id: 'LEQUE', nome: 'Leque', letra: 'F', cor: [255, 150, 60], desc: 'Espalha em até 7 direções' },
+  TELEGUIADO: { id: 'TELEGUIADO', nome: 'Teleguiado', letra: 'T', cor: [255, 110, 200], desc: 'Mísseis que perseguem o alvo' },
+  ELETRICO:   { id: 'ELETRICO', nome: 'Elétrico', letra: 'Z', cor: [170, 200, 255], desc: 'Raio que pula entre inimigos próximos' },
+};
 const POWERUPS = [
-  { id: 'ARMA', nome: 'ARMA+', letra: 'P', cor: [255, 200, 40], peso: 30, desc: 'Aumenta o nível da arma (até 5)' },
-  { id: 'RAPIDO', nome: 'TIRO RÁPIDO', letra: 'R', cor: [255, 110, 40], peso: 18, desc: 'Dobra a cadência por 8s' },
-  { id: 'ESCUDO', nome: 'ESCUDO', letra: 'E', cor: [80, 190, 255], peso: 16, desc: 'Aguenta 1 golpe' },
-  { id: 'ENERGIA', nome: 'ENERGIA', letra: 'S', cor: [200, 110, 255], peso: 16, desc: '+50% de energia do especial' },
-  { id: 'BOMBA', nome: 'BOMBA', letra: 'B', cor: [255, 70, 70], peso: 10, desc: '+1 bomba' },
-  { id: 'VIDA', nome: 'VIDA EXTRA', letra: '+', cor: [90, 255, 120], peso: 5, desc: '+1 vida' },
+  { id: 'ARMA', nome: 'ARMA+', letra: 'P', cor: [255, 200, 40], peso: 20, desc: 'Sobe o nível da arma atual (até 5)' },
+  { id: 'RAPIDO', nome: 'TIRO RÁPIDO', letra: 'R', cor: [255, 110, 40], peso: 11, desc: 'Dobra a cadência por 8s', tempo: 480 },
+  { id: 'ESCUDO', nome: 'ESCUDO', letra: 'E', cor: [80, 190, 255], peso: 10, desc: 'Aguenta 1 golpe' },
+  { id: 'BOLHA', nome: 'BOLHA 8s', letra: '◎', cor: [130, 220, 255], peso: 6, desc: 'Nada te atinge por 8s', tempo: 480 },
+  { id: 'ESTRELA', nome: 'INVENCÍVEL', letra: '★', cor: [255, 240, 120], peso: 4, desc: '6s invencível; encostar destrói', tempo: 360 },
+  { id: 'CANHAO', nome: 'CANHÃO PESADO', letra: 'C', cor: [255, 120, 70], peso: 6, desc: 'Tiros grandes que atravessam por 10s', tempo: 600 },
+  { id: 'IMA', nome: 'ÍMÃ', letra: 'M', cor: [255, 90, 120], peso: 5, desc: 'Puxa todos os itens por 12s', tempo: 720 },
+  { id: 'LENTO', nome: 'CÂMERA LENTA', letra: '◔', cor: [150, 160, 255], peso: 4, desc: 'Inimigos pela metade da velocidade por 6s', tempo: 360 },
+  { id: 'ENERGIA', nome: 'ENERGIA', letra: 'S', cor: [200, 110, 255], peso: 9, desc: '+50% de energia do especial' },
+  { id: 'BOMBA', nome: 'BOMBA', letra: 'B', cor: [255, 70, 70], peso: 6, desc: '+1 bomba' },
+  { id: 'CURA', nome: 'REPARO', letra: '✚', cor: [90, 255, 160], peso: 5, desc: 'Recupera 1 vida perdida' },
+  { id: 'VIDA', nome: 'VIDA EXTRA', letra: '♥', cor: [90, 255, 120], peso: 3, desc: '+1 vida, mesmo com tudo cheio' },
 ];
+const ITENS_ARMA = Object.values(ARMAS).filter(a => a.letra).map(a => ({ id: 'TIPO_ARMA', arma: a.id, nome: a.nome.toUpperCase(), letra: a.letra, cor: a.cor, peso: 3.4, desc: a.desc }));
+const TODOS_ITENS = POWERUPS.concat(ITENS_ARMA);
+const ITEM_DE = id => POWERUPS.find(p => p.id === id);
 const MOEDA = { id: 'MOEDA', cor: [255, 210, 74] }, CRISTAL = { id: 'CRISTAL', cor: [255, 90, 209] };
-function sortearPowerUp() { let r = rnd(95); for (const p of POWERUPS) { r -= p.peso; if (r < 0) return p; } return POWERUPS[0]; }
+function sortearPowerUp() {
+  const total = TODOS_ITENS.reduce((s, p) => s + p.peso, 0);
+  let r = rnd(total);
+  for (const p of TODOS_ITENS) { r -= p.peso; if (r < 0) return p; }
+  return POWERUPS[0];
+}
+const sortearArma = () => ITENS_ARMA[Math.floor(rnd(ITENS_ARMA.length))];
 class Item {
   constructor(tipo, x, y, valor = 0) {
     Object.assign(this, { tipo, x, y, valor }); this.vivo = true; this.idade = 0;
@@ -441,6 +481,7 @@ class Item {
     this.idade++;
     const dx = p.x - this.x, dy = p.y - this.y, d = hyp(dx, dy);
     if (this.vx !== undefined && this.idade < 25) { this.x += this.vx; this.y += this.vy; this.vx *= 0.9; this.vy *= 0.9; return; }
+    if (p.vivo && d < 2) return;
     if (p.vivo && d < ima) { const v = this.tipo === MOEDA || this.tipo === CRISTAL ? 7 : 5; this.x += dx / d * v; this.y += dy / d * v; }
     else { this.x -= 1.3; this.y += Math.sin(this.idade * 0.06) * 0.55; }
     if (this.x < -30) this.vivo = false;
@@ -449,10 +490,18 @@ class Item {
   desenhar(g) {
     if (this.tipo === MOEDA) { desenharCentro(g, Arte.moeda(Math.floor(this.idade / 6)), this.x, this.y); return; }
     if (this.tipo === CRISTAL) { g.drawImage(brilho(CRISTAL.cor, 16), this.x - 16, this.y - 16); desenharCentro(g, Arte.cristal(), this.x, this.y); return; }
-    g.drawImage(brilho(this.tipo.cor, 24), this.x - 24, this.y - 24);
-    caixa(g, this.x - 12, this.y - 12, 24, 24, 6, 'rgba(20,20,30,.88)', rgba(this.tipo.cor, 1), 2);
-    texto(g, this.tipo.letra, this.x, this.y + 5, 14, rgba(this.tipo.cor, 1), 'center', false);
+    desenharItem(g, this.tipo, this.x, this.y);
   }
+}
+
+/** Ícone de item: quadrado para power-ups, losango para tipos de arma. */
+function desenharItem(g, t, x, y, piscar = 0) {
+  g.drawImage(brilho(t.cor, 24), x - 24, y - 24);
+  if (t.arma) {
+    g.save(); g.translate(x, y); g.rotate(Math.PI / 4);
+    caixa(g, -11, -11, 22, 22, 4, 'rgba(20,20,30,.9)', rgba(t.cor, 1), 2.5); g.restore();
+  } else caixa(g, x - 12, y - 12, 24, 24, 6, 'rgba(20,20,30,.88)', rgba(t.cor, 1), 2);
+  texto(g, t.letra, x, y + 5, 14, rgba(t.cor, 1), 'center', false);
 }
 
 // ============================================================ efeitos
@@ -603,6 +652,8 @@ class Player {
     this.escudo = this.at.escudoInicial; this.timerEscudo = 0; this.invencivel = 0; this.tiroRapido = 0; this.especialAtivo = 0; this.vivo = true;
     this.tirosDisparados = 0; this.recarga = 0; this.missilFila = 0; this.obusFila = 0; this.quadro = 0;
     this.querEspecial = false; this.querBomba = false; this.distMovida = 0;
+    this.tipoArma = 'PADRAO';
+    this.efeitos = { BOLHA: 0, ESTRELA: 0, CANHAO: 0, IMA: 0 };   // itens com tempo (quadros restantes)
     this.drones = []; for (let i = 0; i < this.at.drones; i++) this.drones.push({ a: i * Math.PI, rec: i * 10, temp: false });
   }
   get tam() { return this.tipo.tam; }
@@ -628,6 +679,7 @@ class Player {
     this.distMovida += hyp(this.x - x0, this.y - y0);
 
     if (this.invencivel > 0) this.invencivel--; if (this.tiroRapido > 0) this.tiroRapido--;
+    for (const k in this.efeitos) if (this.efeitos[k] > 0) this.efeitos[k]--;
     if (this.especialAtivo > 0) { this.especialAtivo--; if (this.especialAtivo === 0) this.drones = this.drones.filter(d => !d.temp); }
     if (this.recarga > 0) this.recarga--;
     if (this.at.regenEscudo && !this.escudo && ++this.timerEscudo >= this.at.regenEscudo) { this.escudo = true; this.timerEscudo = 0; j.efeitos.anel(this.x, this.y, [100, 200, 255], 50); }
@@ -638,7 +690,7 @@ class Player {
     const atirando = Input.seg('Space', 'KeyZ', 'KeyJ') || Input.tocando || this.turbo();
     if (atirando && this.recarga <= 0) {
       this.atirar(j);
-      let cad = this.at.cadencia;
+      let cad = this.at.cadencia * ({ LASER: 0.6, ONDA: 1.1, LEQUE: 1.25, TELEGUIADO: 1.7, ELETRICO: 1.4 }[this.tipoArma] || 1);
       if (this.tiroRapido > 0) cad = Math.max(3, cad / 2); if (this.turbo()) cad = Math.max(3, cad / 2);
       this.recarga = cad;
     }
@@ -662,16 +714,46 @@ class Player {
     if (this.tipo.id === 'RELAMPAGO' && this.especialAtivo > 0 && this.quadro % 8 === 0) j.tempestade(this);
   }
   atirar(j) {
-    const bx = this.x + this.tam / 2, by = this.y, v = 11;
-    const pad = [[[0, 0]], [[-6, 0], [6, 0]], [[0, 0], [-4, -8], [4, 8]], [[-6, 0], [6, 0], [-6, -11], [6, 11]], [[0, 0], [-6, -5], [6, 5], [-8, -15], [8, 15]]][this.arma - 1];
-    for (const [oy, ang] of pad) {
-      const a = ang * Math.PI / 180, t = new Tiro(bx, by + oy * this.at.tamTiro, Math.cos(a) * v, Math.sin(a) * v, this.at.dano, false);
-      t.tam = this.at.tamTiro; t.cor = this.tipo.cor;
-      if (this.tipo.perfurante) t.perfuracoes = 2;
+    const bx = this.x + this.tam / 2, by = this.y, lv = this.arma, arma = ARMAS[this.tipoArma];
+    const pesado = this.efeitos.CANHAO > 0;
+    const dano = this.at.dano * (pesado ? 1.5 : 1), tam = this.at.tamTiro * (pesado ? 1.8 : 1);
+    const novo = (x, y, vx, vy, d, tipo = 'NORMAL') => {
+      const t = new Tiro(x, y, vx, vy, d, false, tipo);
+      t.tam = tam; t.cor = this.tipoArma === 'PADRAO' ? this.tipo.cor : arma.cor;
+      if (this.tipo.perfurante) t.perfuracoes += 2;
+      if (pesado) t.perfuracoes += 2;
       if (this.tipo.encadeia) t.encadeia = true;
-      j.tiros.push(t); this.tirosDisparados++;
+      j.tiros.push(t); this.tirosDisparados++; return t;
+    };
+    const leque = (angs, v, d, oys = []) => angs.forEach((ang, i) => { const a = ang * Math.PI / 180; novo(bx, by + (oys[i] || 0) * tam, Math.cos(a) * v, Math.sin(a) * v, d); });
+    switch (this.tipoArma) {
+      case 'LASER': {
+        const linhas = [[0], [0], [-6, 6], [-8, 0, 8], [-12, -4, 4, 12]][lv - 1];
+        for (const oy of linhas) { const t = novo(bx + 10, by + oy, 18, 0, dano * 0.55, 'LASER'); t.perfuracoes = 99; t.tam = tam * (lv >= 2 ? 1.5 : 1); }
+        break;
+      }
+      case 'ONDA': {
+        const n = [1, 2, 2, 3, 4][lv - 1], amp = 22 + lv * 8;
+        for (let i = 0; i < n; i++) { const t = novo(bx, by, 7.5, 0, dano * 0.9, 'ONDA'); t.baseY = by; t.amp = amp * (i % 2 ? -1 : 1) * (i >= 2 ? 0.55 : 1); t.fase = 0; t.perfuracoes += 1; }
+        break;
+      }
+      case 'LEQUE': {
+        const n = lv + 2, abertura = 16 + lv * 6;
+        leque(Array.from({ length: n }, (_, i) => -abertura + i * 2 * abertura / (n - 1)), 10, dano * 0.8);
+        break;
+      }
+      case 'TELEGUIADO': {
+        const n = [1, 2, 2, 3, 4][lv - 1];
+        for (let i = 0; i < n; i++) { const a = (i - (n - 1) / 2) * 0.5; const t = novo(bx, by, Math.cos(a) * 5, Math.sin(a) * 5, dano * 1.3, 'MISSIL'); t.raio = 4 * (pesado ? 1.5 : 1); }
+        break;
+      }
+      case 'ELETRICO':
+        if (!j.arcoEletrico(this, lv, dano)) leque([0], 13, dano * 0.6);
+        break;
+      default:
+        leque(...[[[0], 11, dano], [[0, 0], 11, dano, [-6, 6]], [[0, -8, 8], 11, dano, [0, -4, 4]], [[0, 0, -11, 11], 11, dano, [-6, 6, -6, 6]], [[0, -5, 5, -15, 15], 11, dano, [0, -6, 6, -8, 8]]][lv - 1]);
     }
-    Som.tocar('tiro');
+    Som.tocar(this.tipoArma === 'ELETRICO' ? 'raio' : 'tiro');
   }
   ativarEspecial(j) {
     this.energia = 0; Som.tocar('especial');
@@ -690,7 +772,9 @@ class Player {
   turbo() { return this.tipo.id === 'COMETA' && this.especialAtivo > 0; }
   plasma() { return this.tipo.id === 'TITA' && this.especialAtivo > 0; }
   laser() { return this.tipo.id === 'FANTASMA' && this.especialAtivo > 0; }
-  vulneravel() { return this.vivo && this.invencivel <= 0 && !this.turbo() && !this.plasma(); }
+  vulneravel() { return this.vivo && this.invencivel <= 0 && !this.turbo() && !this.plasma() && !this.protegidoItem(); }
+  protegidoItem() { return this.efeitos.BOLHA > 0 || this.efeitos.ESTRELA > 0; }
+  destroiNoContato() { return this.turbo() || this.efeitos.ESTRELA > 0; }
   ganharEnergia(v) { this.energia = Math.min(100, this.energia + v * this.at.ganhoEnergia); }
   bounds() { const w = this.tam * 0.55, h = this.tam * 0.38; return { x: this.x - w / 2, y: this.y - h / 2, w, h }; }
   boundsLaser() { return { x: this.x, y: this.y - 13, w: W, h: 26 }; }
@@ -706,8 +790,19 @@ class Player {
     const dx = Math.round(this.x - s.cx), dy = Math.round(this.y - s.cy);
     if (this.turbo()) for (let i = 1; i <= 3; i++) { g.globalAlpha = 0.25 / i; g.drawImage(s.img, dx - i * 14, dy); }
     g.globalAlpha = 1;
-    g.drawImage(s.img, dx, dy);
+    const est = this.efeitos.ESTRELA;
+    if (est > 0) {                       // aura de arco-íris da invencibilidade
+      const cor = `hsl(${(this.quadro * 12) % 360},100%,65%)`, r = m + 14 + Math.sin(this.quadro * 0.4) * 3;
+      g.fillStyle = cor; g.globalAlpha = est < 90 && est % 10 < 5 ? 0.15 : 0.35; g.beginPath(); g.arc(this.x, this.y, r, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
+    }
+    g.drawImage(est > 0 && this.quadro % 6 < 2 ? Arte.branco(s.img) : s.img, dx, dy);
     for (const d of this.drones) desenharCentro(g, Arte.drone(), this.x + Math.cos(d.a) * 40, this.y + Math.sin(d.a) * 30);
+    const bolha = this.efeitos.BOLHA;
+    if (bolha > 0 && !(bolha < 90 && bolha % 10 < 5)) {
+      g.fillStyle = 'rgba(130,220,255,.16)'; g.strokeStyle = 'rgba(170,235,255,.9)'; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(this.x, this.y, m + 16, 0, Math.PI * 2); g.fill(); g.stroke();
+      g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(this.x - m * 0.5, this.y - m - 8, 6, 3);
+    }
     if (this.escudo) { g.strokeStyle = `rgba(102,204,255,${0.4 + 0.15 * Math.sin(this.quadro * 0.1)})`; g.lineWidth = 3; g.beginPath(); g.arc(this.x, this.y, m + 8, 0, Math.PI * 2); g.stroke(); }
     if (this.plasma()) {
       const r = this.tam;
@@ -858,6 +953,7 @@ class Jogo {
     Object.assign(this, { pontos: 0, combo: 0, comboTimer: 0, maiorCombo: 0, abatesTotal: 0, acertos: 0, ciclo: 1, faseIdx: 0, venceu: false,
       posRecorde: -1, pausado: false, faseRecorde: '1', creditosRun: 0, cristaisRun: 0, ganhoFinal: null, estatEspeciais: 0 });
     this.tutorial = Dados.prog.tutorial ? null : { passo: 0, t: 0 };
+    this.lento = 0; Som.velocidadeMusica(1);
     this.iniciarFase();
   }
   iniciarFase() {
@@ -890,7 +986,7 @@ class Jogo {
       case 'CHEFE': {
         const c = this.chefe;
         if (c.vivo) {
-          c.update(this);
+          if (!(this.lento > 0) || this.quadro % 2 === 0) c.update(this);
           if (this.fase.desafio.id === 'CHEFE_RAPIDO' && this.desafioStatus === 0 && c.tempoLuta > this.fase.desafio.meta * 60) this.falharDesafio();
         } else {
           this.chefeMorrendo++;
@@ -910,9 +1006,12 @@ class Jogo {
         break;
       case 'MORRENDO': if (t > 150) this.finalizarPartida(); break;
     }
-    for (const x of this.tiros) x.update(this);
-    for (const x of this.inimigos) x.update(this);
-    for (const x of this.itens) x.update(this.player, this.player.at.ima);
+    if (this.lento > 0 && --this.lento === 0) { Som.velocidadeMusica(1); this.aviso('Velocidade normal', [180, 190, 255]); }
+    const inimigosAndam = !(this.lento > 0) || this.quadro % 2 === 0;
+    for (const x of this.tiros) if (!x.inimigo || inimigosAndam) x.update(this);
+    if (inimigosAndam) for (const x of this.inimigos) x.update(this);
+    const ima = this.player.efeitos.IMA > 0 ? 3000 : this.player.at.ima;
+    for (const x of this.itens) x.update(this.player, ima);
     this.escudeiros();
     this.colisoes();
     this.efeitos.update();
@@ -1036,14 +1135,15 @@ class Jogo {
     }
     if (p.vivo) {
       for (const t of this.tiros) if (t.vivo && t.inimigo && intersecta(t.bounds(), rp)) {
-        if (p.vulneravel()) { t.vivo = false; this.levarDano(); } else if (p.turbo()) t.vivo = false;
+        if (p.vulneravel()) { t.vivo = false; this.levarDano(); } else if (p.turbo() || p.protegidoItem()) { t.vivo = false; this.efeitos.faisca(t.x, t.y, [170, 235, 255]); }
       }
       for (const i of this.inimigos) {
         if (!i.vivo) continue;
         const rl = i.boundsLaser && i.boundsLaser();
         if (rl && intersecta(rl, rp) && p.vulneravel()) this.levarDano();
         if (!intersecta(i.bounds(), rp)) continue;
-        if (p.turbo()) { if (i.danificar(6)) this.matar(i); }
+        if (p.destroiNoContato()) { if (i.danificar(6)) this.matar(i); }
+        else if (p.efeitos.BOLHA > 0) { if (i.danificar(0.15)) this.matar(i); }
         else if (p.vulneravel()) { this.levarDano(); if (i.danificar(i.tipo.id === 'TANQUE' ? 3 : 50)) this.matar(i); }
       }
       if (temChefe && c.vivo && intersecta(rc, rp) && p.vulneravel()) this.levarDano();
@@ -1070,6 +1170,29 @@ class Jogo {
       else { this.efeitos.raio(p.x + 20, p.y, c.x, c.y); this.danificarChefe(1.6 * p.at.dano); }
     }
     if (alvos.length) Som.tocar('raio');
+  }
+  /** Arma elétrica: raio do bico da nave até os inimigos mais próximos ao alcance, pulando de um para outro. */
+  arcoEletrico(p, lv, dano) {
+    const alcance = 230 + lv * 30, saltos = 1 + Math.floor(lv / 2), x0 = p.x + p.tam / 2, y0 = p.y;
+    const cand = this.inimigos.filter(i => i.vivo && i.x > p.x - 20 && i.x < W && hyp(i.x - x0, i.y - y0) < alcance)
+      .sort((a, b) => hyp(a.x - x0, a.y - y0) - hyp(b.x - x0, b.y - y0));
+    const c = this.chefe, alvos = [];
+    if (cand.length) {
+      let atual = cand[0]; alvos.push(atual);
+      while (alvos.length < saltos) {
+        const prox = cand.filter(i => !alvos.includes(i)).sort((a, b) => hyp(a.x - atual.x, a.y - atual.y) - hyp(b.x - atual.x, b.y - atual.y))[0];
+        if (!prox || hyp(prox.x - atual.x, prox.y - atual.y) > 170) break;
+        alvos.push(prox); atual = prox;
+      }
+    }
+    let ox = x0, oy = y0;
+    for (const i of alvos) { this.efeitos.raio(ox, oy, i.x, i.y); ox = i.x; oy = i.y; if (i.danificar(dano * 1.1)) this.matar(i); this.acertos++; }
+    if (!alvos.length && c && c.vivo && this.estado === 'CHEFE' && !c.entrando) {
+      const pt = c.partes.find(x => x.vivo && hyp(c.x + x.dx - x0, c.y + x.dy - y0) < alcance + 60);
+      if (pt) { this.efeitos.raio(x0, y0, c.x + pt.dx, c.y + pt.dy); this.danificarParte(pt, dano * 1.1); return true; }
+      if (hyp(c.x - x0, c.y - y0) < alcance + c.w * 0.4) { this.efeitos.raio(x0, y0, c.x - c.w * 0.25, c.y); this.danificarChefe(dano * 1.1); return true; }
+    }
+    return alvos.length > 0;
   }
   explodirObus(t) {
     const r = 95;
@@ -1126,8 +1249,10 @@ class Jogo {
       for (const s of [-1, 1]) this.adicionarInimigo(new Inimigo(T.FRAGMENTO, i.x, i.y, this.dif(), i.vx * 0.8 - 0.5, s * rnd(1, 2)));
     }
     if (Math.random() < i.tipo.moeda) { const n = i.tipo.id === 'TANQUE' ? 5 : 1; for (let k = 0; k < n; k++) this.itens.push(new Item(MOEDA, i.x, i.y, 5)); }
-    if (Math.random() < i.tipo.drop || this.abatesTotal % 15 === 0)
-      this.itens.push(new Item(this.abatesTotal % 30 === 15 ? POWERUPS[0] : sortearPowerUp(), i.x, i.y));
+    if (Math.random() < i.tipo.drop || this.abatesTotal % 15 === 0) {
+      const garantido = this.abatesTotal % 45 === 15 ? POWERUPS[0] : this.abatesTotal % 45 === 30 ? sortearArma() : null;
+      this.itens.push(new Item(garantido || sortearPowerUp(), i.x, i.y));
+    }
     this.verificarDesafio();
   }
   derrotarChefe() {
@@ -1136,7 +1261,7 @@ class Jogo {
     this.efeitos.texto(c.x, c.y - c.h / 2, '+' + fmt(bonus), [255, 220, 90], 26);
     for (const t of this.tiros) if (t.inimigo) t.vivo = false;
     for (const i of this.inimigos) { i.vivo = false; this.efeitos.explosao(i.x, i.y, 30); }
-    for (let k = 0; k < 3; k++) this.itens.push(new Item(k === 0 ? POWERUPS[0] : sortearPowerUp(), c.x - 70, c.y - 55 + k * 55));
+    for (let k = 0; k < 3; k++) this.itens.push(new Item(k === 0 ? POWERUPS[0] : k === 1 ? sortearArma() : sortearPowerUp(), c.x - 70, c.y - 55 + k * 55));
     for (let k = 0; k < 2; k++) this.itens.push(new Item(CRISTAL, c.x, c.y, 1));
     for (let k = 0; k < 15; k++) this.itens.push(new Item(MOEDA, c.x, c.y, 10));
     this.chefeMorrendo = 0;
@@ -1187,7 +1312,17 @@ class Jogo {
     let txt = t.nome;
     switch (t.id) {
       case 'ARMA': if (p.arma < 5) p.arma++; else { this.pontos += 1000; txt = 'ARMA MÁXIMA +1000'; } break;
+      case 'TIPO_ARMA':
+        if (p.tipoArma === t.arma) { if (p.arma < 5) { p.arma++; txt = `${t.nome} NÍVEL ${p.arma}`; } else { this.pontos += 1000; txt = `${t.nome} MÁXIMO +1000`; } }
+        else { p.tipoArma = t.arma; txt = `${t.nome} NÍVEL ${p.arma}`; }
+        break;
       case 'RAPIDO': p.tiroRapido = 480; break;
+      case 'BOLHA': case 'ESTRELA': case 'CANHAO': case 'IMA': p.efeitos[t.id] = t.tempo; break;
+      case 'LENTO': this.lento = t.tempo; Som.velocidadeMusica(0.8); break;
+      case 'CURA':
+        if (p.vidas < p.at.vidas) { p.vidas++; txt = 'REPARO +1 VIDA'; }
+        else { p.escudo = true; txt = 'REPARO: ESCUDO'; }
+        break;
       case 'ESCUDO': p.escudo = true; break;
       case 'ENERGIA': p.ganharEnergia(50); break;
       case 'BOMBA': p.bombas = Math.min(5, p.bombas + 1); break;
@@ -1257,6 +1392,7 @@ class Jogo {
     this.efeitos.desenhar(g);
     g.restore();
     if (this.flash > 0) { g.fillStyle = `rgba(255,255,255,${Math.min(1, this.flash / 25)})`; g.fillRect(0, 0, W, H); }
+    if (this.lento > 0) { g.fillStyle = `rgba(90,110,255,${this.lento < 60 ? this.lento / 600 : 0.1})`; g.fillRect(0, 0, W, H); }
     if (this.estado !== 'VITORIA') this.hud(g);
     if (this.estado === 'INTRO_FASE') this.telaIntro(g);
     if (this.estado === 'ALERTA_CHEFE') this.telaAlerta(g);
@@ -1280,9 +1416,9 @@ class Jogo {
     if (p.vidas > 4) texto(g, '+' + (p.vidas - 4), 236, 36, 14, '#fff');
     texto(g, usouToque ? 'BOMBAS' : 'BOMBAS [C]', 262, 15, 11, CINZA);
     for (let i = 0; i < p.bombas; i++) { g.fillStyle = '#ff5046'; g.beginPath(); g.arc(269 + i * 16, 29, 6, 0, Math.PI * 2); g.fill(); }
-    texto(g, 'ARMA', 360, 15, 11, CINZA);
-    for (let i = 0; i < 5; i++) { g.fillStyle = i < p.arma ? AMARELO : '#3c3c50'; g.fillRect(360 + i * 11, 22, 8, 13); }
-    if (p.tiroRapido > 0) { texto(g, 'RÁPIDO', 422, 15, 11, '#ff8c3c'); barra(g, 422, 24, 44, 7, p.tiroRapido / 480, '#ff8c3c'); }
+    const arma = ARMAS[p.tipoArma], corArma = rgba(arma.cor, 1);
+    texto(g, arma.nome.toUpperCase(), 360, 15, 11, p.tipoArma === 'PADRAO' ? CINZA : corArma);
+    for (let i = 0; i < 5; i++) { g.fillStyle = i < p.arma ? (p.tipoArma === 'PADRAO' ? AMARELO : corArma) : '#3c3c50'; g.fillRect(360 + i * 11, 22, 8, 13); }
     const pronto = p.energia >= 100;
     texto(g, p.tipo.especial.toUpperCase() + (usouToque ? '' : ' [X]'), 482, 15, 11, pronto ? rgba(p.tipo.cor, 1) : CINZA);
     barra(g, 482, 22, 118, 13, p.energia / 100, pronto ? (pisca(q, 8) ? '#fff' : rgba(p.tipo.cor, 1)) : rgba(p.tipo.cor, 0.55));
@@ -1299,6 +1435,14 @@ class Jogo {
       texto(g, 'COMBO ' + this.combo, 12, 90, 17, this.mult() > 1 ? AMARELO : '#fff');
       if (this.mult() > 1) texto(g, 'x' + this.mult(), 12 + largura(g, 'COMBO ' + this.combo, 17) + 10, 92, 24, '#ff823c');
     }
+    // itens com tempo ativos: ícone + barra regressiva
+    const ativos = [['RAPIDO', p.tiroRapido]].concat(Object.entries(p.efeitos)).concat([['LENTO', this.lento || 0]]).filter(([, v]) => v > 0);
+    ativos.forEach(([id, v], k) => {
+      const it = ITEM_DE(id), y = 110 + k * 26;
+      g.save(); g.translate(24, y); g.scale(0.7, 0.7); desenharItem(g, it, 0, 0); g.restore();
+      barra(g, 42, y - 3, 60, 6, v / it.tempo, rgba(it.cor, v < 90 && pisca(this.quadro, 5) ? 0.4 : 1));
+      texto(g, Math.ceil(v / 60) + 's', 108, y + 4, 11, '#fff');
+    });
     if (!this.tutorial) {
       const d = this.fase.desafio;
       let s = 'DESAFIO: ' + d.descricao;
@@ -1518,30 +1662,47 @@ class Jogo {
   }
 
   telaComoJogar(g) {
-    texto(g, 'COMO JOGAR', W / 2, 46, 32, '#fff', 'center');
-    const cw = Math.min(450, (W - 50) / 2), x1 = W / 2 - cw - 6, x2 = W / 2 + 6;
-    painel(g, x1, 64, cw, 420); painel(g, x2, 64, cw, 420);
-    texto(g, 'CONTROLES', x1 + 18, 92, 15, AMARELO);
-    const c = usouToque
-      ? [['Deslizar o dedo', 'mover (ou joystick)'], ['Dedo na tela', 'atira sem parar'], ['Botão ★', 'poder especial'], ['Botão 💣', 'bomba'], ['Botão ❚❚', 'pausar']]
-      : [['Setas / WASD', 'mover'], ['Espaço', 'atirar (segure)'], ['X', 'poder especial'], ['C', 'bomba'], ['P / Esc', 'pausar'], ['M', 'som']];
-    c.forEach(([a, b], i) => { texto(g, a, x1 + 18, 118 + i * 23, 14, CIANO); texto(g, b, x1 + 170, 118 + i * 23, 14, '#fff', 'left', true, 600); });
-    texto(g, 'REGRAS', x1 + 18, 268, 15, AMARELO);
-    ['Cumpra a meta de abates e o chefe aparece.', 'Chefes têm peças: destrua-as para expor', 'o núcleo (dano dobrado).', 'Abates seguidos fazem COMBO (até x5).',
-      'Junte ¢ moedas e 💎 cristais e melhore', 'canhão, motor, blindagem, núcleo e módulo', 'de cada nave no Hangar.']
-      .forEach((s, i) => texto(g, (s[0] === s[0].toLowerCase() ? '  ' : '• ') + s, x1 + 18, 292 + i * 22, 13, '#fff', 'left', true, 600));
-    texto(g, 'POWER-UPS', x2 + 18, 92, 15, AMARELO);
-    POWERUPS.forEach((t, i) => {
-      new Item(t, x2 + 34, 116 + i * 33).desenhar(g);
-      texto(g, t.nome, x2 + 60, 114 + i * 33, 14, rgba(t.cor, 1)); texto(g, t.desc, x2 + 60, 128 + i * 33, 11, CINZA, 'left', true, 600);
-    });
-    texto(g, 'INIMIGOS', x2 + 18, 326, 15, AMARELO);
-    ['BASICO', 'ZIGUE', 'ATIRADOR', 'KAMIKAZE', 'TANQUE', 'MINA', 'ESCUDEIRO', 'TELEPORTE', 'ENXAME', 'TORRE', 'LASER', 'ASTEROIDE'].forEach((id, i) => {
-      const col = i % 3, lin = Math.floor(i / 3), xx = x2 + 30 + col * (cw - 40) / 3, yy = 350 + lin * 34;
-      const im = imagemInimigo(T[id]), s = Math.min(1, 30 / Math.max(im.width, im.height));
-      g.drawImage(im, xx - im.width * s / 2, yy - im.height * s / 2, im.width * s, im.height * s);
-      texto(g, T[id].nome, xx + 20, yy + 4, 11, '#fff', 'left', true, 600);
-    });
+    texto(g, 'COMO JOGAR', W / 2, 42, 30, '#fff', 'center');
+    const abas = ['Controles', 'Itens', 'Armas', 'Inimigos'], aba = this.abaAjuda || 0;
+    abas.forEach((nome, i) => botao(g, nome, W / 2 + (i - 1.5) * 150, 76, 140, 36, () => { this.abaAjuda = i; }, { sel: i === aba, tam: 15 }));
+    const w = Math.min(860, W - 40), x = W / 2 - w / 2, y = 100;
+    painel(g, x, y, w, 380);
+    if (aba === 0) {
+      const c = usouToque
+        ? [['Deslizar o dedo', 'mover (ou joystick, nas Configurações)'], ['Dedo na tela', 'atira sem parar'], ['Botão ★', 'poder especial quando a barra enche'], ['Botão 💣', 'bomba: limpa a tela'], ['Botão ❚❚', 'pausar']]
+        : [['Setas / WASD', 'mover'], ['Espaço', 'atirar (segure)'], ['X', 'poder especial quando a barra enche'], ['C', 'bomba: limpa a tela'], ['P / Esc', 'pausar'], ['M', 'liga e desliga o som']];
+      texto(g, 'CONTROLES', x + 24, y + 32, 15, AMARELO);
+      c.forEach(([a, b], i) => { texto(g, a, x + 24, y + 62 + i * 26, 15, CIANO); texto(g, b, x + 200, y + 62 + i * 26, 15, '#fff', 'left', true, 600); });
+      texto(g, 'REGRAS', x + 24, y + 238, 15, AMARELO);
+      ['Cumpra a meta de abates e o chefe aparece. Destrua as peças dele para expor o núcleo.', 'Abates seguidos fazem COMBO e multiplicam os pontos (até x5).',
+        'Levar dano tira 1 vida e 1 nível de arma.', 'Junte ¢ moedas e 💎 cristais para melhorar as peças das naves no Hangar.']
+        .forEach((t, i) => texto(g, '• ' + t, x + 24, y + 266 + i * 24, 13, '#fff', 'left', true, 600));
+    } else if (aba === 1) {
+      texto(g, 'POWER-UPS (caem dos inimigos; ímã puxa quando você chega perto)', x + 24, y + 30, 14, AMARELO);
+      const col = Math.ceil(POWERUPS.length / 2);
+      POWERUPS.forEach((t, i) => {
+        const cx = x + 40 + Math.floor(i / col) * (w / 2), cy = y + 66 + (i % col) * 50;
+        desenharItem(g, t, cx, cy);
+        texto(g, t.nome, cx + 28, cy - 2, 14, rgba(t.cor, 1)); texto(g, t.desc, cx + 28, cy + 14, 12, CINZA, 'left', true, 600);
+      });
+    } else if (aba === 2) {
+      texto(g, 'TIPOS DE TIRO — item em losango', x + 24, y + 30, 14, AMARELO);
+      texto(g, 'Pegar o mesmo tipo sobe o nível (até 5). Pegar outro tipo troca de arma e mantém o nível.', x + 24, y + 52, 13, '#fff', 'left', true, 600);
+      ITENS_ARMA.forEach((t, i) => {
+        const cy = y + 92 + i * 52, cx = x + 44;
+        desenharItem(g, t, cx, cy);
+        texto(g, ARMAS[t.arma].nome, cx + 30, cy - 2, 15, rgba(t.cor, 1)); texto(g, t.desc, cx + 30, cy + 15, 12, CINZA, 'left', true, 600);
+      });
+      texto(g, 'O item P (ARMA+) sobe o nível da arma que você está usando.', x + 24, y + 362, 12, CINZA, 'left', true, 600);
+    } else {
+      texto(g, 'INIMIGOS', x + 24, y + 30, 14, AMARELO);
+      ['BASICO', 'ZIGUE', 'ATIRADOR', 'KAMIKAZE', 'TANQUE', 'MINA', 'ESCUDEIRO', 'TELEPORTE', 'ENXAME', 'TORRE', 'LASER', 'ASTEROIDE'].forEach((id, i) => {
+        const cxx = x + 50 + (i % 3) * (w / 3), cy = y + 72 + Math.floor(i / 3) * 76;
+        const im = imagemInimigo(T[id]), k = Math.min(1.2, 46 / Math.max(im.width, im.height));
+        g.drawImage(im, cxx - im.width * k / 2, cy - im.height * k / 2, im.width * k, im.height * k);
+        texto(g, T[id].nome, cxx + 36, cy + 5, 14, '#fff');
+      });
+    }
     botao(g, '← Voltar', W / 2, H - 28, 180, 42, () => this.trocar('MENU'), { tam: 16 });
   }
   tabelaRecordes(g, y, destaque) {

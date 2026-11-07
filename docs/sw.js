@@ -1,6 +1,6 @@
 /* Service worker do Navinha: guarda o jogo para funcionar offline e permite atualizar.
  * Para publicar uma nova versão, basta mudar o número abaixo (e o VERSAO em js/jogo.js). */
-const VERSAO = 'navinha-3.0.0';
+const VERSAO = 'navinha-3.1.0';
 const ARQUIVOS = [
   './',
   'index.html',
