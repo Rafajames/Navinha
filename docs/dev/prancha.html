@@ -1,0 +1,24 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Prancha de sprites</title>
+<style>body{margin:0;background:#0a0c22;color:#eef;font:600 13px system-ui}canvas{display:block}</style></head>
+<body><canvas id="c" width="1200" height="900"></canvas>
+<script src="../js/arte.js"></script>
+<script>
+const g=document.getElementById('c').getContext('2d'); g.imageSmoothingEnabled=false;
+const t=(s,x,y,c='#aab0c8',f=13)=>{g.fillStyle=c;g.font=`700 ${f}px system-ui`;g.fillText(s,x,y)};
+t('NAVES (peças nível 1 → 5)',16,24,'#ffd650',16);
+const ids=Object.keys(Arte.NAVES_ARTE);
+ids.forEach((id,i)=>{const y=40+i*62;t(id,16,y+26);
+ for(let lv=1;lv<=5;lv++){const n=Arte.nave(id,{canhao:lv,motor:lv,blindagem:lv,nucleo:lv,modulo:lv},0);g.drawImage(n.img,120+(lv-1)*110,y,n.img.width*1.4,n.img.height*1.4);} });
+t('INIMIGOS',700,24,'#ffd650',16);
+['BASICO','ZIGUE','ATIRADOR','KAMIKAZE','TANQUE','MINA','ESCUDEIRO','TELEPORTE','ENXAME','TORRE','LASER'].forEach((id,i)=>{
+ const im=Arte.inimigo(id),x=700+(i%3)*165,y=40+Math.floor(i/3)*80; g.drawImage(im,x,y); t(id,x,y+im.height+14);});
+g.drawImage(Arte.asteroide(1,50),700+2*165,40+3*80);
+t('CHEFES (formas 1, 2, 3)',16,560,'#ffd650',16);
+['OMEGA','DEVORADOR','RAINHA','SENTINELA','ZORG'].forEach((id,i)=>{for(let f=1;f<=3;f++){const im=Arte.chefe(id,f),s=0.62;g.drawImage(im,16+i*236,570+(f-1)*100,im.width*s,im.height*s);} t(id,16+i*236,890);});
+t('PARTES · EFEITOS · ITENS',700,380,'#ffd650',16);
+['canhao','missil','hangar','garra','ferrao'].forEach((p,i)=>{g.drawImage(Arte.parte(p),700+i*90,395); g.drawImage(Arte.parte(p,true),700+i*90,445);});
+for(let q=0;q<8;q++) g.drawImage(Arte.explosao(q),700+q*56,500);
+['canhao','motor','blindagem','nucleo','modulo'].forEach((p,i)=>g.drawImage(Arte.iconePeca(p),1060,40+i*46));
+g.drawImage(Arte.drone(),1060,280); g.drawImage(Arte.moeda(0),1100,280); g.drawImage(Arte.cristal(),1130,276);
+g.drawImage(Arte.planeta(1,22,'#c86a3a','#f0a060',true),1000,320);
+</script></body></html>

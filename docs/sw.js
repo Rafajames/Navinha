@@ -1,12 +1,39 @@
 /* Service worker do Navinha: guarda o jogo para funcionar offline e permite atualizar.
- * Para publicar uma nova versão, basta mudar o número abaixo (e o VERSAO em game.js). */
-const VERSAO = 'navinha-2.0.0';
+ * Para publicar uma nova versão, basta mudar o número abaixo (e o VERSAO em js/jogo.js). */
+const VERSAO = 'navinha-3.0.0';
 const ARQUIVOS = [
-  './', 'index.html', 'game.js', 'manifest.webmanifest',
-  'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
-  'assets/nave.png', 'assets/inimigo.png', 'assets/tiro.png', 'assets/musica.mp3',
-  'assets/som_tiro.mp3', 'assets/som_explosao.mp3', 'assets/powerup.mp3', 'assets/dano.mp3', 'assets/alerta.mp3',
-  'assets/especial.mp3', 'assets/bomba.mp3', 'assets/acerto.mp3', 'assets/menu.mp3',
+  './',
+  'index.html',
+  'js/arte.js',
+  'js/dados.js',
+  'js/jogo.js',
+  'manifest.webmanifest',
+  'icons/apple-touch-icon.png',
+  'icons/icon-192.png',
+  'icons/icon-512.png',
+  'assets/acerto.mp3',
+  'assets/alerta.mp3',
+  'assets/bomba.mp3',
+  'assets/compra.mp3',
+  'assets/dano.mp3',
+  'assets/erro.mp3',
+  'assets/especial.mp3',
+  'assets/inimigo.png',
+  'assets/menu.mp3',
+  'assets/moeda.mp3',
+  'assets/musica_chefe.mp3',
+  'assets/musica_fase1.mp3',
+  'assets/musica_fase2.mp3',
+  'assets/musica_fase3.mp3',
+  'assets/musica_fase4.mp3',
+  'assets/musica_fase5.mp3',
+  'assets/musica_menu.mp3',
+  'assets/nave.png',
+  'assets/powerup.mp3',
+  'assets/raio.mp3',
+  'assets/som_explosao.mp3',
+  'assets/som_tiro.mp3',
+  'assets/tiro.png',
 ];
 
 self.addEventListener('install', e => {

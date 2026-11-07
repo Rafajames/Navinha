@@ -4,17 +4,22 @@ Jogo de navinha 2D em Java (Swing/AWT): escolha sua nave, atravesse 5 fases, cum
 
 ![Batalha contra a Rainha Carmesim](src/res/imagem-jogo.jpg)
 
-## 📱 Versão web (celular e PC)
+## 📱 Versão web 3.0 (principal)
 
-A pasta `docs/` tem o jogo inteiro em HTML/JavaScript, com instalação como app (PWA):
+Jogue no navegador ou instale como app: **https://rafajames.github.io/Navinha/**
 
-- **Celular:** deslize o dedo para mover — a nave atira enquanto o dedo está na tela. Botões ★ (especial), 💣 (bomba) e ❚❚ (pausa) no canto.
-- **PC:** mesmos controles do teclado da versão Java.
-- **Instalar:** botão "Baixar app" no menu (Android/Chrome) ou Compartilhar → Adicionar à Tela de Início (iPhone). Depois de instalado, funciona sem internet.
-- **Atualizar:** ao publicar uma versão nova, o jogo mostra "Nova versão disponível — Atualizar".
+- **8 naves** com peças que você melhora no **Hangar** (Canhão, Motor, Blindagem, Núcleo e Módulo, níveis 1 a 5) — as peças aparecem no desenho da nave.
+- **12 inimigos** e **5 chefes** com peças destrutíveis e 3 formas.
+- Moedas (¢) e cristais (💎) para comprar naves e peças — tudo dentro do jogo, sem dinheiro real.
+- **Celular:** deslize o dedo (ou use o joystick virtual) para mover; a nave atira enquanto o dedo está na tela. Botões ★ (especial), 💣 (bomba) e ❚❚ (pausa). Tutorial na primeira partida.
+- **PC:** setas/WASD, Espaço, X (especial), C (bomba), P (pausa), M (som).
+- **Instalar:** botão "Instalar" no menu (Android) ou Compartilhar → Adicionar à Tela de Início (iPhone). Funciona sem internet.
+- **Atualizar:** ao publicar uma versão nova, o app mostra "Nova versão disponível — Atualizar".
 
-Para publicar: em *Settings → Pages* do repositório, escolha a branch `main` e a pasta `/docs`. O jogo fica em `https://rafajames.github.io/Navinha/`.
-A cada atualização, aumente o número de `VERSAO` em `docs/sw.js` (e em `docs/game.js`) para os aparelhos receberem o aviso.
+Código em `docs/`: `js/arte.js` (pixel art), `js/dados.js` (naves, peças, progresso), `js/jogo.js` (regras e telas), `sw.js` (offline e atualização).
+Para lançar uma versão, aumente `VERSAO` em `docs/sw.js` e em `docs/js/jogo.js`. Veja o [ROADMAP](ROADMAP.md) para o que vem a seguir.
+
+> A versão Java abaixo está congelada na 2.0.
 
 ## ▶️ Como rodar
 
