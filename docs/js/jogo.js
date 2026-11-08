@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.1.0';
+const VERSAO = '3.2.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -506,7 +506,7 @@ function desenharItem(g, t, x, y, piscar = 0) {
 
 // ============================================================ efeitos
 class Efeitos {
-  constructor() { this.p = []; this.t = []; this.anim = []; this.raios = []; }
+  constructor() { this.p = []; this.t = []; this.anim = []; this.raios = []; this.fxs = []; }
   get max() { return Config.visual === 'leve' ? 350 : 1300; }
   add(x, y, vx, vy, tam, vida, cor) { if (this.p.length < this.max) this.p.push({ x, y, vx, vy, tam, vida, vidaMax: vida, cor }); }
   explosao(x, y, tam) {
@@ -514,15 +514,18 @@ class Efeitos {
     for (let i = 0; i < n; i++) { const a = rnd(Math.PI * 2), v = rnd(1, 2 + tam / 20); this.add(x, y, Math.cos(a) * v, Math.sin(a) * v, rnd(2, 4), 20 + rnd(20), cores[Math.floor(rnd(3))]); }
     this.anim.push({ x, y, q: 0, esc: clamp(tam / 30, 0.6, 4) });
     if (tam > 50) this.anel(x, y, [255, 200, 120], tam);
+    if (tam >= 150) this.fx('plasma', x, y, tam / 150);
   }
+  /** Efeito em pixel art (assets/fx). Em modo leve só os grandes. */
+  fx(nome, x, y, esc = 1) { if (Config.visual === 'leve' && this.fxs.length > 3) return; if (this.fxs.length < 24) this.fxs.push({ nome, x, y, esc, t: 0 }); }
   anel(x, y, cor, raio) { this.p.push({ x, y, anel: true, raio, vida: 22, vidaMax: 22, cor }); }
   faisca(x, y, cor) { this.add(x, y, rnd(1, 2.5), (Math.random() - 0.5) * 1.5, rnd(2, 4), 12 + rnd(10), cor); }
   fumaca(x, y) { this.add(x, y, (Math.random() - 0.5) * 0.4, (Math.random() - 0.5) * 0.4, 3, 18, [200, 200, 210]); }
-  acerto(x, y) { for (let i = 0; i < 2; i++) { const a = Math.PI + (Math.random() - 0.5) * 1.6, v = rnd(1, 4); this.add(x, y, Math.cos(a) * v, Math.sin(a) * v, 2, 10, [255, 230, 80]); } }
+  acerto(x, y) { if (Math.random() < 0.5) this.fx('faisca', x - 10, y, 0.4); for (let i = 0; i < 2; i++) { const a = Math.PI + (Math.random() - 0.5) * 1.6, v = rnd(1, 4); this.add(x, y, Math.cos(a) * v, Math.sin(a) * v, 2, 10, [255, 230, 80]); } }
   raio(x1, y1, x2, y2) {
     const pts = [[x1, y1]], n = Math.max(3, Math.floor(hyp(x2 - x1, y2 - y1) / 18));
     for (let i = 1; i < n; i++) pts.push([x1 + (x2 - x1) * i / n + rnd(-8, 8), y1 + (y2 - y1) * i / n + rnd(-8, 8)]);
-    pts.push([x2, y2]); this.raios.push({ pts, vida: 8 });
+    pts.push([x2, y2]); this.raios.push({ pts, vida: 8 }); this.fx('choque', x2, y2, 0.45);
   }
   texto(x, y, s, cor, tam) { this.t.push({ x, y, s, cor, tam, vida: 55 }); }
   update() {
@@ -531,6 +534,8 @@ class Efeitos {
     for (const t of this.t) { t.y -= 0.7; t.vida--; }
     this.t = this.t.filter(t => t.vida > 0);
     for (const a of this.anim) a.q += 0.34;
+    for (const e of this.fxs) e.t += Fx.lista[e.nome].fps / 60;
+    this.fxs = this.fxs.filter(e => e.t < Fx.lista[e.nome].n);
     this.anim = this.anim.filter(a => a.q < 8);
     for (const r of this.raios) r.vida--;
     this.raios = this.raios.filter(r => r.vida > 0);
@@ -540,6 +545,7 @@ class Efeitos {
       const img = Arte.explosao(Math.floor(a.q)), s = a.esc;
       g.drawImage(img, a.x - img.width * s / 2, a.y - img.height * s / 2, img.width * s, img.height * s);
     }
+    g.imageSmoothingEnabled = false; for (const e of this.fxs) Fx.desenhar(g, e);
     for (const p of this.p) {
       const a = clamp(p.vida / p.vidaMax, 0, 1);
       if (p.anel) { const r = p.raio * (1 - a); g.strokeStyle = rgba(p.cor, a); g.lineWidth = 1 + 4 * a; g.beginPath(); g.arc(p.x, p.y, r, 0, Math.PI * 2); g.stroke(); }
@@ -552,7 +558,7 @@ class Efeitos {
     }
     for (const t of this.t) { g.globalAlpha = Math.min(1, t.vida / 20); texto(g, t.s, t.x, t.y, t.tam, rgba(t.cor, 1), 'center'); g.globalAlpha = 1; }
   }
-  limpar() { this.p = []; this.t = []; this.anim = []; this.raios = []; }
+  limpar() { this.p = []; this.t = []; this.anim = []; this.raios = []; this.fxs = []; }
 }
 
 // ============================================================ fundo
@@ -974,7 +980,7 @@ class Jogo {
     if (this.comboTimer > 0 && --this.comboTimer === 0) this.combo = 0;
 
     switch (this.estado) {
-      case 'INTRO_FASE': if (t > (this.tutorial ? 120 : 200)) this.trocar('JOGANDO'); break;
+      case 'INTRO_FASE': if (t === 25) this.efeitos.fx('teleporte', this.player.x, this.player.y + 20, 0.9); if (t > (this.tutorial ? 120 : 200)) this.trocar('JOGANDO'); break;
       case 'JOGANDO':
         if (this.tutorial) this.atualizarTutorial();
         else if (this.abatesFase < this.fase.meta) this.gerarInimigos();
@@ -992,7 +998,7 @@ class Jogo {
           this.chefeMorrendo++;
           if (this.chefeMorrendo % 6 === 0 && this.chefeMorrendo < 120) {
             this.efeitos.explosao(c.x + (Math.random() - 0.5) * c.w * 0.8, c.y + (Math.random() - 0.5) * c.h * 0.6, 55); Som.tocar('explosao'); this.tremer(8);
-          } else if (this.chefeMorrendo === 120) { this.efeitos.explosao(c.x, c.y, 220); this.flash = 25; this.tremer(30); Som.tocar('bomba'); vibrar(200); }
+          } else if (this.chefeMorrendo === 120) { this.efeitos.explosao(c.x, c.y, 220); this.efeitos.fx('implosao', c.x, c.y, 2.6); this.flash = 25; this.tremer(30); Som.tocar('bomba'); vibrar(200); }
           else if (this.chefeMorrendo > 170) this.concluirFase();
         }
         break;
@@ -1308,7 +1314,7 @@ class Jogo {
     const p = this.player;
     if (u.tipo === MOEDA) { this.creditosRun += u.valor; Som.tocar('moeda'); return; }
     if (u.tipo === CRISTAL) { this.cristaisRun += u.valor; Som.tocar('powerup'); this.efeitos.texto(p.x, p.y - 32, '+1 💎', CRISTAL.cor, 16); return; }
-    const t = u.tipo; Som.tocar('powerup');
+    const t = u.tipo; Som.tocar('powerup'); this.efeitos.fx('coleta', p.x, p.y, 0.9);
     let txt = t.nome;
     switch (t.id) {
       case 'ARMA': if (p.arma < 5) p.arma++; else { this.pontos += 1000; txt = 'ARMA MÁXIMA +1000'; } break;
@@ -1334,7 +1340,7 @@ class Jogo {
     this.bombaNaFase = true;
     if (this.fase.desafio.id === 'SEM_BOMBA' && !this.tutorial) this.falharDesafio();
     Som.tocar('bomba'); this.flash = 20; this.tremer(25); vibrar(150);
-    this.efeitos.anel(this.player.x, this.player.y, [255, 255, 255], 900);
+    this.efeitos.anel(this.player.x, this.player.y, [255, 255, 255], 900); this.efeitos.fx('plasma', this.player.x + 160, this.player.y, 3.4);
     for (const t of this.tiros) if (t.inimigo) t.vivo = false;
     for (const i of this.inimigos) if (i.vivo && i.danificar(25)) this.matar(i);
     const c = this.chefe;

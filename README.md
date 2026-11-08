@@ -19,6 +19,8 @@ Jogue no navegador ou instale como app: **https://rafajames.github.io/Navinha/**
 Código em `docs/`: `js/arte.js` (pixel art), `js/dados.js` (naves, peças, progresso), `js/jogo.js` (regras e telas), `sw.js` (offline e atualização).
 Para lançar uma versão, aumente `VERSAO` em `docs/sw.js` e em `docs/js/jogo.js`. Veja o [ROADMAP](ROADMAP.md) para o que vem a seguir.
 
+Efeitos visuais (faíscas, plasma, teletransporte) adaptados do [pixelfx](https://github.com/patch-gg/pixelfx), licença MIT — veja `docs/assets/fx/LICENSE-pixelfx.txt`.
+
 > A versão Java abaixo está congelada na 2.0.
 
 ## ▶️ Como rodar

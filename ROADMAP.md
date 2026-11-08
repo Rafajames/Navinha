@@ -14,6 +14,13 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.2 (entregue)
+
+**Efeitos pixelfx** (pacotes A e B, escolhidos pelo Claude)
+- Chefe: implosão e explosão de plasma ao morrer; bomba com onda de plasma
+- Faíscas de acerto, choque nos raios (Elétrico/Relâmpago), coleta de itens e feixe de teletransporte ao entrar na fase
+- Imagens em `docs/assets/fx/` (créditos: pixelfx, MIT). Descartados: explosões de chão com fumaça e domos de campo de força (não combinam com o espaço)
+
 ## ✅ Versão 3.1 (entregue)
 
 **Ajudas e tiros**
