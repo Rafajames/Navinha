@@ -88,7 +88,17 @@ const Dados = {
   },
   salvar() {
     armaz.gravar('navinha.recordes', JSON.stringify(this.recordes));
+    this.reconciliarDiaria();
     armaz.gravar('navinha.progresso', JSON.stringify(this.prog));
+  },
+  /** Outra aba pode ter pego a recompensa diária depois que esta carregou: fica a mais recente gravada (ultimoDia e sequência juntos). */
+  reconciliarDiaria() {
+    let salvo;
+    try { salvo = (JSON.parse(armaz.ler('navinha.progresso')) || {}).diaria; } catch (_) { return; }
+    if (!salvo || typeof salvo !== 'object' || !/^\d{4}-\d{2}-\d{2}$/.test(salvo.ultimoDia || '')) return;
+    if (!this.prog.diaria || salvo.ultimoDia > (this.prog.diaria.ultimoDia || '')) {
+      this.prog.diaria = { ultimoDia: salvo.ultimoDia, sequencia: Number.isInteger(salvo.sequencia) && salvo.sequencia >= 0 && salvo.sequencia <= 7 ? salvo.sequencia : 0 };
+    }
   },
   estado(id) { return this.prog.naves[id]; },
   dono(id) { return this.prog.naves[id].dono; },

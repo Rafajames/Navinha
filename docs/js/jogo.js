@@ -851,7 +851,26 @@ function botao(g, rotulo, cx, cy, w, h, acao, o = {}) {
   const x = cx - w / 2, y = cy - h / 2, off = o.desligado;
   caixa(g, x, y, w, h, 12, off ? 'rgba(30,30,44,.7)' : o.sel ? 'rgba(255,214,80,.16)' : o.fundo || 'rgba(10,14,34,.82)', off ? 'rgba(255,255,255,.12)' : o.sel ? AMARELO : o.borda || 'rgba(120,150,255,.4)', o.sel ? 3 : 2);
   texto(g, rotulo, cx, cy + (o.tam || 20) * 0.36, o.tam || 20, off ? '#6a6e84' : o.cor || (o.sel ? AMARELO : '#fff'), 'center');
-  botoes.push({ x, y, w, h, acao: () => { if (off) { Som.tocar('erro'); if (o.aoDesligado) o.aoDesligado(); return; } Som.tocar('menu'); acao(); } });
+  // área de toque maior que o desenho (6 px lógicos nas laterais, 8 em cima e embaixo); o visual não muda
+  const alvo = { x: x - 6, y: y - 8, w: w + 12, h: h + 16, dx: x, dy: y, dw: w, dh: h, bt: true, acao: () => { if (off) { Som.tocar('erro'); if (o.aoDesligado) o.aoDesligado(); return; } Som.tocar('menu'); acao(); } };
+  separarAlvo(alvo);
+  botoes.push(alvo);
+}
+/** Área de toque de um botão não pode invadir a de outro botão: se invadir, a folga entre os dois desenhos é dividida ao meio. */
+function separarAlvo(a) {
+  for (const b of botoes) {
+    if (!b.bt) continue;
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (ox <= 0 || oy <= 0) continue;
+    if (a.dx < b.dx + b.dw && b.dx < a.dx + a.dw && a.dy < b.dy + b.dh && b.dy < a.dy + a.dh) continue; // os desenhos já se cruzam: não mexe
+    if (oy <= ox) {                                   // separa na vertical
+      if (a.dy >= b.dy + b.dh) { const m = (b.dy + b.dh + a.dy) / 2; b.h = m - b.y; a.h = a.y + a.h - m; a.y = m; }
+      else { const m = (a.dy + a.dh + b.dy) / 2; a.h = m - a.y; b.h = b.y + b.h - m; b.y = m; }
+    } else {                                          // separa na horizontal
+      if (a.dx >= b.dx + b.dw) { const m = (b.dx + b.dw + a.dx) / 2; b.w = m - b.x; a.w = a.x + a.w - m; a.x = m; }
+      else { const m = (a.dx + a.dw + b.dx) / 2; a.w = m - a.x; b.w = b.x + b.w - m; b.x = m; }
+    }
+  }
 }
 function titulo(g, s, y, q, tam = 70) {
   g.font = `900 ${tam}px ${FONTE}`; g.textAlign = 'center';
