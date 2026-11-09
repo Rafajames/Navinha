@@ -14,6 +14,13 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.3 (entregue)
+
+**Letras e cards maiores (pacote 7)** — letra mínima maior em todas as telas; HUD com ícones grandes (vidas ×N, bombas ×N, arma, ★ especial); botões de 48 a 58 px; Hangar com botão verde "Melhorar" e "falta ¢X"; fim de jogo com cards de resumo
+**Mapa e dificuldade (pacote 9)** — mapa com 10 fases (Setor 1 e Setor 2), 3 estrelas por fase (concluir, cumprir o desafio, não perder vida), Fácil/Normal/Difícil, "Tentar o chefe de novo"
+**Sensação de jogo (pacote 10)** — borda vermelha ao levar dano e com 1 vida, barra de tempo do combo, aviso (anel + nome) antes dos ataques do chefe
+Fica para depois: modo retrato (exige refazer todo o layout)
+
 ## ✅ Versão 3.2 (entregue)
 
 **Efeitos pixelfx** (pacotes A e B, escolhidos pelo Claude)
@@ -51,10 +58,11 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ## 📋 Próximos pacotes (a escolher)
 
-### 4 · Fases e desafios
-- Mapa de setores com 10 fases e 3 estrelas por fase
-- Missões diárias e conquistas
-- Dificuldade Fácil / Normal / Difícil; checkpoint antes do chefe
+### 8 · Voltar todo dia
+- Recompensa diária, missões do dia, conquistas, continuar com cristais
+
+### Modo retrato
+- Jogar em pé, com uma mão (exige novo layout)
 
 ### 6 · Publicação na Google Play
 - Empacotar como app Android (TWA/AAB a partir do GitHub Pages)

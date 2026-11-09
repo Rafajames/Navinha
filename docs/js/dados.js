@@ -60,9 +60,9 @@ function atributos(nave, pc) {
 
 // ============================================================ configurações
 const Config = {
-  controle: 'deslizar', sens: 1.35, musica: 0.6, efeitos: 0.8, vibrar: true, visual: 'completo',
+  controle: 'deslizar', sens: 1.35, musica: 0.6, efeitos: 0.8, vibrar: true, visual: 'completo', dificuldade: 'normal',
   carregar() { try { Object.assign(this, JSON.parse(armaz.ler('navinha.config')) || {}); } catch (_) {} },
-  salvar() { const { controle, sens, musica, efeitos, vibrar, visual } = this; armaz.gravar('navinha.config', JSON.stringify({ controle, sens, musica, efeitos, vibrar, visual })); },
+  salvar() { const { controle, sens, musica, efeitos, vibrar, visual, dificuldade } = this; armaz.gravar('navinha.config', JSON.stringify({ controle, sens, musica, efeitos, vibrar, visual, dificuldade })); },
 };
 
 // ============================================================ progresso e recordes
@@ -73,7 +73,7 @@ const Dados = {
     try { this.prog = JSON.parse(armaz.ler('navinha.progresso')) || {}; } catch (_) { this.prog = {}; }
     const p = this.prog;
     p.creditos = p.creditos || 0; p.cristais = p.cristais || 0; p.desafios = p.desafios || 0;
-    p.naves = p.naves || {};
+    p.naves = p.naves || {}; p.mapa = p.mapa || {};
     for (const n of NAVES) {
       p.naves[n.id] = p.naves[n.id] || { dono: n.preco === 0, pecas: { canhao: 1, motor: 1, blindagem: 1, nucleo: 1, modulo: 1 } };
     }
@@ -100,6 +100,9 @@ const Dados = {
   },
   ganhar(c, d) { this.prog.creditos += c; this.prog.cristais += d; this.salvar(); },
   liberar(id) { if (this.dono(id)) return false; this.prog.naves[id].dono = true; this.salvar(); return true; },
+  estrelas(n) { return this.prog.mapa[n] || 0; },
+  liberada(n) { return n === 1 || this.estrelas(n - 1) >= 1; },
+  registrarEstrelas(n, e) { const novo = e > this.estrelas(n); if (novo) { this.prog.mapa[n] = e; this.salvar(); } return novo; },
   somarDesafio() { this.prog.desafios++; this.salvar(); },
   entraNoRanking(p) { return p > 0 && (this.recordes.length < 10 || p > this.recordes[this.recordes.length - 1].pontos); },
   adicionar(nome, pontos, fase, nave) {
@@ -108,3 +111,11 @@ const Dados = {
     this.prog.nome = nome; this.salvar(); return this.recordes.indexOf(r);
   },
 };
+
+// dificuldade: multiplicadores de velocidade/frequência/vida dos inimigos e chefes, prêmio em moedas e vidas extras
+const DIFS = {
+  facil: { nome: 'Fácil', vel: 0.85, intervalo: 1.25, vida: 0.75, premio: 0.75, vidas: 1, nota: '+1 vida · inimigos mais fracos · moedas ×0,75' },
+  normal: { nome: 'Normal', vel: 1, intervalo: 1, vida: 1, premio: 1, vidas: 0, nota: 'a experiência padrão' },
+  dificil: { nome: 'Difícil', vel: 1.15, intervalo: 0.8, vida: 1.4, premio: 1.5, vidas: 0, nota: 'mais inimigos e chefes mais fortes · moedas ×1,5' },
+};
+const dm = () => DIFS[Config.dificuldade] || DIFS.normal;

@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.2.0';
+const VERSAO = '3.3.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -821,12 +821,14 @@ class Player {
 // ============================================================ desenho: utilidades
 const FONTE = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const AMARELO = '#ffd650', CIANO = '#6edcff', CINZA = '#aab0c8', ROSA = '#ff7ad9';
+const MINF = 15, T_ = t => Math.max(MINF, t);
 function texto(g, s, x, y, tam, cor, al = 'left', sombra = true, peso = 800) {
+  tam = T_(tam);
   g.font = `${peso} ${tam}px ${FONTE}`; g.textAlign = al; g.textBaseline = 'alphabetic';
   if (sombra) { g.fillStyle = 'rgba(0,0,0,.75)'; g.fillText(s, x + 2, y + 2); }
   g.fillStyle = cor; g.fillText(s, x, y);
 }
-function largura(g, s, tam, peso = 800) { g.font = `${peso} ${tam}px ${FONTE}`; return g.measureText(s).width; }
+function largura(g, s, tam, peso = 800) { tam = T_(tam); g.font = `${peso} ${tam}px ${FONTE}`; return g.measureText(s).width; }
 function caixa(g, x, y, w, h, r, fill, stroke, lw = 2) {
   g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
   if (fill) { g.fillStyle = fill; g.fill(); }
@@ -839,6 +841,7 @@ function barra(g, x, y, w, h, pct, cor) {
   g.strokeStyle = 'rgba(255,255,255,.25)'; g.lineWidth = 1; g.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
 }
 function quebrar(g, s, x, y, w, tam, cor, peso = 600, al = 'left') {
+  tam = T_(tam);
   const pal = s.split(' '); let l = '', yy = y;
   for (const p of pal) { const t = l ? l + ' ' + p : p; if (largura(g, t, tam, peso) > w && l) { texto(g, l, x, yy, tam, cor, al, true, peso); yy += tam + 4; l = p; } else l = t; }
   if (l) texto(g, l, x, yy, tam, cor, al, true, peso);
@@ -891,7 +894,7 @@ class Jogo {
   trocar(e) {
     this.estado = e; this.timer = 0; Input.apertou.clear();
     if (!this.emPartida()) this.fundo.hiper = 0;
-    if (['MENU', 'HANGAR', 'CONFIG', 'COMO_JOGAR', 'RECORDES'].includes(e)) Som.tocarMusica('musica_menu');
+    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES'].includes(e)) Som.tocarMusica('musica_menu');
   }
   pausar() { if (this.estado !== 'MORRENDO') { this.pausado = true; this.opcaoPausa = 0; Input.soltarTudo(); } }
 
@@ -906,10 +909,11 @@ class Jogo {
     switch (this.estado) {
       case 'MENU': this.fundo.update(); this.teclasMenu(); break;
       case 'HANGAR': this.fundo.update(); this.efeitos.update(); this.teclasHangar(); break;
+      case 'MAPA': this.fundo.update(); this.teclasMapa(); break;
       case 'CONFIG': case 'COMO_JOGAR': case 'RECORDES': this.fundo.update(); if (Input.ap('Escape', 'Backspace')) this.trocar('MENU'); break;
       case 'NOME': this.fundo.update(); this.efeitos.update(); break;
       case 'GAME_OVER': this.fundo.update(); this.efeitos.update();
-        if (this.timer > 40) { if (Input.ap('KeyR')) this.novaPartida(this.player.tipo); else if (Input.ap('Enter')) this.trocar('HANGAR'); else if (Input.ap('Escape')) this.trocar('MENU'); }
+        if (this.timer > 40) { if (Input.ap('KeyR')) this.novaPartida(this.player.tipo, this.nodoInicio); else if (Input.ap('Enter')) this.trocar('HANGAR'); else if (Input.ap('Escape')) this.trocar('MENU'); }
         break;
       case 'VITORIA': this.atualizarVitoria(); break;
       default: this.atualizarPartida();
@@ -932,8 +936,17 @@ class Jogo {
   decolar() {
     const n = NAVES[this.naveHangar];
     if (!Dados.dono(n.id)) { Som.tocar('erro'); this.aviso('Compre esta nave primeiro', [255, 120, 120]); return; }
-    Dados.prog.naveAtual = n.id; Dados.salvar(); telaCheia(); this.novaPartida(n);
+    Dados.prog.naveAtual = n.id; Dados.salvar(); this.naveEscolhida = n; this.noMapa = Math.max(1, ...[...Array(10).keys()].map(i => i + 1).filter(k => Dados.liberada(k))); this.trocar('MAPA');
   }
+  teclasMapa() {
+    if (Input.ap('ArrowLeft', 'KeyA')) this.noMapa = Math.max(1, this.noMapa - 1);
+    if (Input.ap('ArrowRight', 'KeyD')) this.noMapa = Math.min(10, this.noMapa + 1);
+    if (Input.ap('ArrowUp', 'KeyW')) this.noMapa = Math.max(1, this.noMapa - 5);
+    if (Input.ap('ArrowDown', 'KeyS')) this.noMapa = Math.min(10, this.noMapa + 5);
+    if (Input.ap('Escape', 'Backspace')) this.trocar('HANGAR');
+    if (Input.ap('Enter', 'Space') && Dados.liberada(this.noMapa)) this.iniciarDoMapa(this.noMapa);
+  }
+  iniciarDoMapa(n, chefe = false) { telaCheia(); this.novaPartida(this.naveEscolhida || this.player.tipo, n, chefe); }
   atualizarPausa() {
     if (Input.ap('ArrowUp', 'KeyW')) this.opcaoPausa = (this.opcaoPausa + 2) % 3;
     if (Input.ap('ArrowDown', 'KeyS')) this.opcaoPausa = (this.opcaoPausa + 1) % 3;
@@ -942,33 +955,35 @@ class Jogo {
   }
   acaoPausa(i) {
     this.pausado = false;
-    if (i === 1) this.novaPartida(this.player.tipo);
+    if (i === 1) this.novaPartida(this.player.tipo, this.nodoInicio);
     else if (i === 2) { this.guardarGanhos(); this.trocar('HANGAR'); }
   }
   /** Moedas e cristais coletados ficam com o jogador mesmo se ele sair no meio. */
   guardarGanhos(bonusPontos = false) {
     const bonus = bonusPontos ? Math.floor(this.pontos / 100) : 0;
-    this.ganhoFinal = { moedas: this.creditosRun, bonus, cristais: this.cristaisRun };
-    Dados.ganhar(this.creditosRun + bonus, this.cristaisRun);
+    const pr = dm().premio, mo = Math.round(this.creditosRun * pr), bo = Math.round(bonus * pr);
+    this.ganhoFinal = { moedas: mo, bonus: bo, cristais: this.cristaisRun };
+    Dados.ganhar(mo + bo, this.cristaisRun);
     this.creditosRun = 0; this.cristaisRun = 0;
   }
 
-  novaPartida(tipo) {
-    this.player = new Player(tipo);
+  novaPartida(tipo, nodo = 1, chefe = false) {
+    this.player = new Player(tipo); this.player.vidas += dm().vidas;
     this.tiros = []; this.inimigos = []; this.novos = []; this.itens = []; this.efeitos.limpar(); this.filaAvisos = []; this.avisoTimer = 0;
-    Object.assign(this, { pontos: 0, combo: 0, comboTimer: 0, maiorCombo: 0, abatesTotal: 0, acertos: 0, ciclo: 1, faseIdx: 0, venceu: false,
+    Object.assign(this, { pontos: 0, combo: 0, comboTimer: 0, maiorCombo: 0, abatesTotal: 0, acertos: 0, ciclo: Math.floor((nodo - 1) / 5) + 1, faseIdx: (nodo - 1) % 5, venceu: false, nodoInicio: nodo, irParaChefe: chefe, podeChefe: false,
       posRecorde: -1, pausado: false, faseRecorde: '1', creditosRun: 0, cristaisRun: 0, ganhoFinal: null, estatEspeciais: 0 });
-    this.tutorial = Dados.prog.tutorial ? null : { passo: 0, t: 0 };
+    this.tutorial = (Dados.prog.tutorial || nodo > 1 || chefe) ? null : { passo: 0, t: 0 };
     this.lento = 0; Som.velocidadeMusica(1);
     this.iniciarFase();
   }
   iniciarFase() {
     this.fase = FASES[this.faseIdx]; this.fundo.definir(this.fase); this.chefe = null;
-    Object.assign(this, { abatesFase: 0, desafioStatus: 0, maxComboFase: 0, asteroidesFase: 0, danoNaFase: false, bombaNaFase: false, bonusAplicado: false, chefeMorrendo: 0, spawn: 90 });
+    Object.assign(this, { abatesFase: 0, desafioStatus: 0, maxComboFase: 0, asteroidesFase: 0, danoNaFase: false, bombaNaFase: false, bonusAplicado: false, chefeMorrendo: 0, spawn: 90, chegouChefe: false });
+    if (this.irParaChefe) { this.abatesFase = this.fase.meta; this.irParaChefe = false; }
     Som.tocarMusica('musica_fase' + this.fase.n);
     this.trocar('INTRO_FASE');
   }
-  dif() { return this.fase.vel * (1 + (this.ciclo - 1) * 0.25); }
+  dif() { return this.fase.vel * (1 + (this.ciclo - 1) * 0.25) * dm().vel; }
 
   atualizarPartida() {
     const t = this.timer;
@@ -987,7 +1002,7 @@ class Jogo {
         else if (!this.inimigos.length || t > 400) { this.trocar('ALERTA_CHEFE'); Som.tocar('alerta'); vibrar([80, 60, 80]); }
         break;
       case 'ALERTA_CHEFE':
-        if (t > 170) { this.chefe = new Chefe(this.fase.chefe, this.dif(), 1 + (this.ciclo - 1) * 0.6); Som.tocarMusica('musica_chefe'); this.trocar('CHEFE'); }
+        if (t > 170) { this.chefe = new Chefe(this.fase.chefe, this.dif(), (1 + (this.ciclo - 1) * 0.6) * dm().vida); this.chegouChefe = true; Som.tocarMusica('musica_chefe'); this.trocar('CHEFE'); }
         break;
       case 'CHEFE': {
         const c = this.chefe;
@@ -1023,6 +1038,7 @@ class Jogo {
     this.efeitos.update();
     if (this.tremor > 0) this.tremor *= 0.88;
     if (this.flash > 0) this.flash--;
+    if (this.bordaDano > 0) this.bordaDano--;
   }
   atualizarTutorial() {
     const tu = this.tutorial, p = this.player; tu.t++;
@@ -1069,7 +1085,7 @@ class Jogo {
   gerarInimigos() {
     if (--this.spawn > 0) return;
     const prog = this.abatesFase / this.fase.meta;
-    this.spawn = this.fase.intervalo * (1 - 0.3 * prog) / (1 + (this.ciclo - 1) * 0.2);
+    this.spawn = this.fase.intervalo * (1 - 0.3 * prog) / (1 + (this.ciclo - 1) * 0.2) * dm().intervalo;
     if (this.inimigos.length >= 16) return;
     let tipo = sortearTipo(this.fase);
     const conta = id => this.inimigos.filter(i => i.tipo.id === id && i.vivo).length;
@@ -1281,12 +1297,14 @@ class Jogo {
     if (this.desafioStatus === 0) {
       if ((d.id === 'SEM_DANO' && !this.danoNaFase) || (d.id === 'SEM_BOMBA' && !this.bombaNaFase)) this.concluirDesafio(); else this.falharDesafio();
     }
+    const nodo = (this.ciclo - 1) * 5 + this.fase.n, est = 1 + (this.desafioStatus === 1 ? 1 : 0) + (this.danoNaFase ? 0 : 1);
+    const novoRec = nodo <= 10 ? Dados.registrarEstrelas(nodo, est) : false;
     const bd = 2500 * this.fase.n * this.ciclo, bv = 1000 * this.player.vidas * this.ciclo;
     this.resumo = [['Chefe derrotado', '+' + fmt(5000 * this.fase.n * this.ciclo)]];
     if (this.desafioStatus === 1) { this.pontos += bd; this.resumo.push(['Desafio: ' + d.descricao, '+' + fmt(bd)]); }
     else this.resumo.push(['Desafio: ' + d.descricao, 'falhou']);
     this.pontos += bv;
-    this.resumo.push([`Vidas restantes (${this.player.vidas})`, '+' + fmt(bv)], ['Coletado até agora', `¢ ${this.creditosRun} · 💎 ${this.cristaisRun}`]);
+    this.resumo.push([`Vidas restantes (${this.player.vidas})`, '+' + fmt(bv)], ['Estrelas' + (novoRec ? ' (novo!)' : ''), '★'.repeat(est) + '☆'.repeat(3 - est)], ['Coletado até agora', `¢ ${this.creditosRun} · 💎 ${this.cristaisRun}`]);
     this.trocar('FASE_CONCLUIDA');
   }
   verificarDesafio() {
@@ -1305,7 +1323,7 @@ class Jogo {
   levarDano() {
     const p = this.player;
     if (p.escudo) { p.escudo = false; p.timerEscudo = 0; p.invencivel = 90; this.efeitos.anel(p.x, p.y, [100, 200, 255], 80); Som.tocar('acerto'); this.tremer(6); vibrar(30); return; }
-    p.vidas--; p.arma = Math.max(1, p.arma - 1); p.invencivel = 150; this.danoNaFase = true;
+    p.vidas--; p.arma = Math.max(1, p.arma - 1); p.invencivel = 150; this.danoNaFase = true; this.bordaDano = 40;
     if (this.fase.desafio.id === 'SEM_DANO') this.falharDesafio();
     this.combo = 0; this.tremer(18); Som.tocar('dano'); vibrar(120); this.efeitos.explosao(p.x, p.y, 40);
     if (p.vidas <= 0) { p.vivo = false; this.efeitos.explosao(p.x, p.y, 150); this.flash = 15; this.tremer(30); Som.tocar('bomba'); vibrar([100, 50, 250]); this.trocar('MORRENDO'); }
@@ -1371,6 +1389,7 @@ class Jogo {
     switch (this.estado) {
       case 'MENU': this.telaMenu(g); break;
       case 'HANGAR': this.telaHangar(g); break;
+      case 'MAPA': this.telaMapa(g); break;
       case 'CONFIG': this.telaConfig(g); break;
       case 'COMO_JOGAR': this.telaComoJogar(g); break;
       case 'RECORDES': this.telaRecordes(g); break;
@@ -1380,7 +1399,7 @@ class Jogo {
     }
     if (this.avisoTimer > 0 && this.avisoTxt && !this.pausado) {
       const t = this.avisoTimer, a = Math.min(1, t / 25), s = t > 100 ? 1 + (t - 100) * 0.04 : 1;
-      g.globalAlpha = a; texto(g, this.avisoTxt, W / 2, 128, Math.round(24 * s), rgba(this.avisoCor, 1), 'center'); g.globalAlpha = 1;
+      g.globalAlpha = a; texto(g, this.avisoTxt, W / 2, 124, Math.round(24 * s), rgba(this.avisoCor, 1), 'center'); g.globalAlpha = 1;
     }
   }
   desenharPartida(g) {
@@ -1399,6 +1418,9 @@ class Jogo {
     g.restore();
     if (this.flash > 0) { g.fillStyle = `rgba(255,255,255,${Math.min(1, this.flash / 25)})`; g.fillRect(0, 0, W, H); }
     if (this.lento > 0) { g.fillStyle = `rgba(90,110,255,${this.lento < 60 ? this.lento / 600 : 0.1})`; g.fillRect(0, 0, W, H); }
+    const baixa = this.player.vivo && this.player.vidas <= 1 && this.estado !== 'FASE_CONCLUIDA' && this.estado !== 'VITORIA';
+    const aBorda = Math.max((this.bordaDano || 0) / 40 * 0.7, baixa ? 0.14 + 0.1 * Math.sin(this.quadro * 0.12) : 0);
+    if (aBorda > 0.01) { const gr = g.createRadialGradient(W / 2, H / 2, H * 0.4, W / 2, H / 2, W * 0.62); gr.addColorStop(0, 'rgba(255,0,0,0)'); gr.addColorStop(1, `rgba(255,20,20,${aBorda})`); g.fillStyle = gr; g.fillRect(0, 0, W, H); }
     if (this.estado !== 'VITORIA') this.hud(g);
     if (this.estado === 'INTRO_FASE') this.telaIntro(g);
     if (this.estado === 'ALERTA_CHEFE') this.telaAlerta(g);
@@ -1410,44 +1432,44 @@ class Jogo {
 
   hud(g) {
     const p = this.player, q = this.quadro;
-    g.fillStyle = 'rgba(4,6,18,.75)'; g.fillRect(0, 0, W, 44);
-    g.fillStyle = 'rgba(120,150,255,.25)'; g.fillRect(0, 44, W, 1);
-    texto(g, 'PONTOS', 12, 15, 11, CINZA);
-    g.font = `800 22px ui-monospace, Menlo, Consolas, monospace`; g.textAlign = 'left';
+    g.fillStyle = 'rgba(4,6,18,.78)'; g.fillRect(0, 0, W, 58);
+    g.fillStyle = 'rgba(120,150,255,.25)'; g.fillRect(0, 58, W, 1);
+    g.font = '800 28px ui-monospace, Menlo, Consolas, monospace'; g.textAlign = 'left';
     const pts = String(this.pontos).padStart(8, '0');
-    g.fillStyle = 'rgba(0,0,0,.7)'; g.fillText(pts, 14, 39); g.fillStyle = AMARELO; g.fillText(pts, 12, 37);
-    texto(g, 'VIDAS', 140, 15, 11, CINZA);
-    const mini = Arte.nave(p.tipo.id, p.pecas, 0).img;
-    for (let i = 0; i < Math.min(4, p.vidas); i++) g.drawImage(mini, 136 + i * 24, 20, 34, 18);
-    if (p.vidas > 4) texto(g, '+' + (p.vidas - 4), 236, 36, 14, '#fff');
-    texto(g, usouToque ? 'BOMBAS' : 'BOMBAS [C]', 262, 15, 11, CINZA);
-    for (let i = 0; i < p.bombas; i++) { g.fillStyle = '#ff5046'; g.beginPath(); g.arc(269 + i * 16, 29, 6, 0, Math.PI * 2); g.fill(); }
-    const arma = ARMAS[p.tipoArma], corArma = rgba(arma.cor, 1);
-    texto(g, arma.nome.toUpperCase(), 360, 15, 11, p.tipoArma === 'PADRAO' ? CINZA : corArma);
-    for (let i = 0; i < 5; i++) { g.fillStyle = i < p.arma ? (p.tipoArma === 'PADRAO' ? AMARELO : corArma) : '#3c3c50'; g.fillRect(360 + i * 11, 22, 8, 13); }
+    g.fillStyle = 'rgba(0,0,0,.7)'; g.fillText(pts, 14, 40); g.fillStyle = AMARELO; g.fillText(pts, 12, 38);
+    let x = 12 + g.measureText(pts).width + 16;
+    // vidas, bombas, arma e especial: ícones grandes em vez de rótulos pequenos
+    const mini = Arte.nave(p.tipo.id, p.pecas, 0).img, vs = '×' + p.vidas, baixa = p.vidas <= 1;
+    g.drawImage(mini, x, 17, 42, 22); texto(g, vs, x + 48, 40, 24, baixa && pisca(q, 12) ? '#ff5a5a' : '#fff'); x += 48 + largura(g, vs, 24) + 16;
+    const bs = '×' + p.bombas;
+    texto(g, '💣', x, 40, 24, '#fff', 'left', false); texto(g, bs, x + 32, 40, 24, p.bombas ? '#fff' : '#777'); x += 32 + largura(g, bs, 24) + 16;
+    const arma = ARMAS[p.tipoArma], corArma = p.tipoArma === 'PADRAO' ? AMARELO : rgba(arma.cor, 1);
+    for (let i = 0; i < 5; i++) { g.fillStyle = i < p.arma ? corArma : '#3c3c50'; g.fillRect(x + i * 15, 17, 11, 24); }
+    x += 5 * 15 + 12;
     const pronto = p.energia >= 100;
-    texto(g, p.tipo.especial.toUpperCase() + (usouToque ? '' : ' [X]'), 482, 15, 11, pronto ? rgba(p.tipo.cor, 1) : CINZA);
-    barra(g, 482, 22, 118, 13, p.energia / 100, pronto ? (pisca(q, 8) ? '#fff' : rgba(p.tipo.cor, 1)) : rgba(p.tipo.cor, 0.55));
-    const fx = W - 196;
-    texto(g, `FASE ${this.fase.n}${this.ciclo > 1 ? ' · C' + this.ciclo : ''}`, fx, 15, 11, CINZA);
-    if (this.estado === 'CHEFE' || this.estado === 'ALERTA_CHEFE') texto(g, 'CHEFE!', fx, 37, 17, '#ff5a5a');
-    else { barra(g, fx, 22, 128, 13, this.abatesFase / this.fase.meta, CIANO); texto(g, `${Math.min(this.abatesFase, this.fase.meta)} / ${this.fase.meta}`, fx + 64, 33, 11, '#fff', 'center'); }
-    caixa(g, W - 54, 5, 46, 34, 9, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.3)', 1.5);
-    g.fillStyle = '#fff'; g.fillRect(W - 37, 14, 4, 16); g.fillRect(W - 29, 14, 4, 16);
-    botoes.push({ x: W - 62, y: 0, w: 62, h: 46, acao: () => this.pausar() });
+    texto(g, '★', x, 40, 26, pronto ? '#fff' : rgba(p.tipo.cor, 1), 'left', false);
+    barra(g, x + 30, 20, 84, 20, p.energia / 100, pronto ? (pisca(q, 8) ? '#fff' : rgba(p.tipo.cor, 1)) : rgba(p.tipo.cor, 0.55));
+    const fx = W - 246;
+    texto(g, `FASE ${this.fase.n}${this.ciclo > 1 ? ' · C' + this.ciclo : ''}`, fx, 24, 16, CINZA);
+    if (this.estado === 'CHEFE' || this.estado === 'ALERTA_CHEFE') texto(g, 'CHEFE!', fx, 50, 24, '#ff5a5a');
+    else { barra(g, fx, 30, 168, 22, this.abatesFase / this.fase.meta, CIANO); texto(g, `${Math.min(this.abatesFase, this.fase.meta)} / ${this.fase.meta}`, fx + 84, 47, 16, '#fff', 'center'); }
+    caixa(g, W - 62, 6, 54, 46, 10, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.3)', 1.5);
+    g.fillStyle = '#fff'; g.fillRect(W - 45, 16, 6, 26); g.fillRect(W - 31, 16, 6, 26);
+    botoes.push({ x: W - 70, y: 0, w: 70, h: 60, acao: () => this.pausar() });
     // moedas da partida e combo
-    moedas(g, 12, 66, this.creditosRun, this.cristaisRun, 14);
+    moedas(g, 12, 86, this.creditosRun, this.cristaisRun, 18);
     if (this.combo >= 3) {
-      texto(g, 'COMBO ' + this.combo, 12, 90, 17, this.mult() > 1 ? AMARELO : '#fff');
-      if (this.mult() > 1) texto(g, 'x' + this.mult(), 12 + largura(g, 'COMBO ' + this.combo, 17) + 10, 92, 24, '#ff823c');
+      texto(g, 'COMBO ' + this.combo, 12, 116, 22, this.mult() > 1 ? AMARELO : '#fff');
+      if (this.mult() > 1) texto(g, 'x' + this.mult(), 12 + largura(g, 'COMBO ' + this.combo, 22) + 10, 118, 30, '#ff823c');
+      barra(g, 12, 124, 130, 7, this.comboTimer / 150, this.mult() > 1 ? '#ff823c' : '#fff');
     }
     // itens com tempo ativos: ícone + barra regressiva
     const ativos = [['RAPIDO', p.tiroRapido]].concat(Object.entries(p.efeitos)).concat([['LENTO', this.lento || 0]]).filter(([, v]) => v > 0);
     ativos.forEach(([id, v], k) => {
-      const it = ITEM_DE(id), y = 110 + k * 26;
-      g.save(); g.translate(24, y); g.scale(0.7, 0.7); desenharItem(g, it, 0, 0); g.restore();
-      barra(g, 42, y - 3, 60, 6, v / it.tempo, rgba(it.cor, v < 90 && pisca(this.quadro, 5) ? 0.4 : 1));
-      texto(g, Math.ceil(v / 60) + 's', 108, y + 4, 11, '#fff');
+      const it = ITEM_DE(id), y = 158 + k * 36;
+      g.save(); g.translate(26, y); g.scale(0.9, 0.9); desenharItem(g, it, 0, 0); g.restore();
+      barra(g, 48, y - 5, 70, 10, v / it.tempo, rgba(it.cor, v < 90 && pisca(this.quadro, 5) ? 0.4 : 1));
+      texto(g, Math.ceil(v / 60) + 's', 124, y + 6, 17, '#fff');
     });
     if (!this.tutorial) {
       const d = this.fase.desafio;
@@ -1456,15 +1478,23 @@ class Jogo {
       if (d.id === 'ASTEROIDES') s += `  (${Math.min(this.asteroidesFase, d.meta)}/${d.meta})`;
       if (d.id === 'CHEFE_RAPIDO' && this.chefe && this.chefe.vivo) s += `  (${Math.max(0, d.meta - Math.floor(this.chefe.tempoLuta / 60))}s)`;
       if (this.desafioStatus === 1) s += '  ✔'; if (this.desafioStatus === -1) s += '  ✘';
-      texto(g, s, 12, H - 10, 11, this.desafioStatus === 1 ? '#78ff96' : this.desafioStatus === -1 ? 'rgba(255,110,110,.7)' : 'rgba(220,220,240,.8)');
+      const lw = largura(g, s, 16, 700);
+      caixa(g, W / 2 - lw / 2 - 12, 66, lw + 24, 28, 8, 'rgba(0,0,0,.55)', null);
+      texto(g, s, W / 2, 86, 16, this.desafioStatus === 1 ? '#78ff96' : this.desafioStatus === -1 ? 'rgba(255,110,110,.8)' : '#fff', 'center', false, 700);
     }
     const c = this.chefe;
     if (c && c.vivo && this.estado === 'CHEFE') {
-      const w = Math.min(440, W - 440), x = W / 2 - w / 2, y = H - 36;
-      const info = c.entrando ? '' : c.blindado() ? ' · BLINDADO — destrua as peças' : ' · ' + c.ataqueAtual();
-      texto(g, `${c.nome.toUpperCase()} · FORMA ${c.forma}${info}`, W / 2, y - 6, 13, c.forma === 3 ? '#ff6e6e' : '#fff', 'center');
-      barra(g, x, y, w, 12, c.vida / c.vidaMax, c.forma === 3 ? '#ff3232' : c.forma === 2 ? '#ff9a3c' : '#ffc23c');
-      for (const k of [0.33, 0.66]) { g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(x + w * k, y, 2, 12); }
+      const w = Math.min(460, W - 470), x2 = W / 2 - w / 2, y = H - 36;
+      const info = c.entrando ? '' : c.blindado() ? ' · BLINDADO — destrua as peças' : '';
+      texto(g, `${c.nome.toUpperCase()} · FORMA ${c.forma}${info}`, W / 2, y - 8, 17, c.forma === 3 ? '#ff6e6e' : '#fff', 'center');
+      barra(g, x2, y, w, 18, c.vida / c.vidaMax, c.forma === 3 ? '#ff3232' : c.forma === 2 ? '#ff9a3c' : '#ffc23c');
+      for (const k of [0.33, 0.66]) { g.fillStyle = 'rgba(0,0,0,.7)'; g.fillRect(x2 + w * k, y, 2, 18); }
+      // aviso de ataque: anel que fecha no núcleo + nome do ataque antes de disparar
+      if (!c.entrando && c.timerPadrao < 36) {
+        const k = c.timerPadrao / 36, cx = c.x - c.w * 0.35, r = 110 - 80 * k;
+        g.strokeStyle = `rgba(255,70,70,${0.3 + 0.6 * k})`; g.lineWidth = 4; g.beginPath(); g.arc(cx, c.y, r, 0, Math.PI * 2); g.stroke();
+        texto(g, '⚠ ' + c.ataqueAtual().toUpperCase(), clamp(c.x, 150, W - 150), clamp(c.y - c.h / 2 - 8, 110, H - 80), 20, '#ff6a6a', 'center');
+      }
     }
     if (usouToque && ['JOGANDO', 'ALERTA_CHEFE', 'CHEFE', 'INTRO_FASE'].includes(this.estado) && !this.pausado) this.botoesToque(g);
     if (Input.joy) {
@@ -1476,20 +1506,20 @@ class Jogo {
   }
   botoesToque(g) {
     const p = this.player, pronto = p.energia >= 100, destaque = this.tutorial && this.tutorial.passo;
-    const ex = W - 78, ey = H - 82, er = 46;
+    const ex = W - 88, ey = H - 94, er = 56;
     g.fillStyle = pronto ? rgba(p.tipo.cor, 0.3) : 'rgba(10,14,34,.55)'; g.beginPath(); g.arc(ex, ey, er, 0, Math.PI * 2); g.fill();
     g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 6; g.beginPath(); g.arc(ex, ey, er - 4, 0, Math.PI * 2); g.stroke();
     g.strokeStyle = pronto && pisca(this.quadro, 10) ? '#fff' : rgba(p.tipo.cor, 1); g.lineCap = 'round';
     g.beginPath(); g.arc(ex, ey, er - 4, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * p.energia / 100); g.stroke(); g.lineCap = 'butt';
-    texto(g, '★', ex, ey + 4, 30, pronto ? '#fff' : 'rgba(255,255,255,.45)', 'center');
-    texto(g, pronto ? 'ESPECIAL' : Math.floor(p.energia) + '%', ex, ey + 24, 11, pronto ? '#fff' : CINZA, 'center');
+    texto(g, '★', ex, ey + 6, 38, pronto ? '#fff' : 'rgba(255,255,255,.45)', 'center');
+    texto(g, pronto ? 'ESPECIAL' : Math.floor(p.energia) + '%', ex, ey + 30, 16, pronto ? '#fff' : CINZA, 'center');
     botoes.push({ x: ex - er - 8, y: ey - er - 8, w: er * 2 + 16, h: er * 2 + 16, acao: () => { if (pronto) p.querEspecial = true; else vibrar(15); } });
-    const bx = W - 182, by = H - 58, br = 34, tem = p.bombas > 0;
+    const bx = W - 214, by = H - 68, br = 44, tem = p.bombas > 0;
     g.fillStyle = tem ? 'rgba(255,70,70,.28)' : 'rgba(10,14,34,.5)'; g.beginPath(); g.arc(bx, by, br, 0, Math.PI * 2); g.fill();
     g.strokeStyle = tem ? 'rgba(255,120,110,.9)' : 'rgba(255,255,255,.2)'; g.lineWidth = 3; g.stroke();
-    texto(g, '💣', bx, by + 6, 24, '#fff', 'center', false);
-    caixa(g, bx + 14, by - br - 2, 24, 20, 8, tem ? '#ff4b46' : '#444', null);
-    texto(g, String(p.bombas), bx + 26, by - br + 13, 13, '#fff', 'center', false);
+    texto(g, '💣', bx, by + 9, 34, '#fff', 'center', false);
+    caixa(g, bx + 18, by - br - 4, 30, 26, 10, tem ? '#ff4b46' : '#444', null);
+    texto(g, String(p.bombas), bx + 33, by - br + 15, 18, '#fff', 'center', false);
     botoes.push({ x: bx - br - 8, y: by - br - 8, w: br * 2 + 16, h: br * 2 + 16, acao: () => { if (tem) p.querBomba = true; else vibrar(15); } });
     if (destaque === 2 || destaque === 3) {
       const [x, y, r] = destaque === 2 ? [ex, ey, er] : [bx, by, br], k = 1 + 0.12 * Math.sin(this.quadro * 0.2);
@@ -1526,15 +1556,15 @@ class Jogo {
     texto(g, 'Destrua as peças do chefe para expor o núcleo', W / 2, 312, 14, CINZA, 'center', true, 600);
   }
   telaFaseConcluida(g) {
-    const w = Math.min(540, W - 40), h = 300, x = W / 2 - w / 2, y = 120;
+    const w = Math.min(560, W - 40), h = 340, x = W / 2 - w / 2, y = 150;
     painel(g, x, y, w, h);
     texto(g, `FASE ${this.fase.n} CONCLUÍDA!`, W / 2, y + 50, 36, AMARELO, 'center');
     let yy = y + 98;
     this.resumo.forEach((l, i) => {
       if (this.timer < 30 + i * 25) return;
-      texto(g, l[0], x + 30, yy, 15, '#fff', 'left', true, 600);
-      texto(g, l[1], x + w - 30, yy, 17, l[1] === 'falhou' ? '#ff6e6e' : i === 3 ? AMARELO : '#78ff96', 'right');
-      yy += 32;
+      texto(g, l[0], x + 30, yy, 18, '#fff', 'left', true, 600);
+      texto(g, l[1], x + w - 30, yy, 20, l[1] === 'falhou' ? '#ff6e6e' : i === 3 ? AMARELO : '#78ff96', 'right');
+      yy += 40;
     });
     if (this.timer > 60) {
       texto(g, 'Total: ' + fmt(this.pontos), x + 30, y + h - 22, 17, AMARELO);
@@ -1556,11 +1586,11 @@ class Jogo {
   telaPausa(g) {
     g.fillStyle = 'rgba(0,0,0,.72)'; g.fillRect(0, 0, W, H);
     texto(g, 'PAUSADO', W / 2, 110, 40, '#fff', 'center');
-    ['Continuar', 'Recomeçar', 'Sair para o Hangar'].forEach((s, i) => botao(g, s, W / 2, 170 + i * 60, 300, 48, () => this.acaoPausa(i), { sel: i === this.opcaoPausa, tam: 19 }));
-    texto(g, `Coletado nesta partida: ¢ ${this.creditosRun} · 💎 ${this.cristaisRun} (fica com você mesmo saindo)`, W / 2, 372, 13, CINZA, 'center', true, 600);
-    botao(g, Som.mudo ? '🔇 Som desligado' : '🔊 Som ligado', W / 2 - 110, 420, 200, 42, () => this.alternarSom(), { tam: 15 });
-    botao(g, Config.controle === 'joystick' ? '🕹 Joystick' : '👆 Deslizar', W / 2 + 110, 420, 200, 42, () => { Config.controle = Config.controle === 'joystick' ? 'deslizar' : 'joystick'; Config.salvar(); }, { tam: 15 });
-    texto(g, usouToque ? 'Deslize ou use o joystick para mover · toque para atirar · ★ especial · 💣 bomba' : 'Setas/WASD mover · Espaço atirar · X especial · C bomba · P pausar · M som', W / 2, 480, 13, CINZA, 'center', true, 600);
+    ['Continuar', 'Recomeçar', 'Sair para o Hangar'].forEach((s, i) => botao(g, s, W / 2, 168 + i * 68, 340, 58, () => this.acaoPausa(i), { sel: i === this.opcaoPausa, tam: 22 }));
+    texto(g, `Coletado: ¢ ${this.creditosRun} · 💎 ${this.cristaisRun} (fica com você)`, W / 2, 384, 17, CINZA, 'center', true, 600);
+    botao(g, Som.mudo ? '🔇 Som desligado' : '🔊 Som ligado', W / 2 - 120, 436, 230, 52, () => this.alternarSom(), { tam: 18 });
+    botao(g, Config.controle === 'joystick' ? '🕹 Joystick' : '👆 Deslizar', W / 2 + 120, 436, 230, 52, () => { Config.controle = Config.controle === 'joystick' ? 'deslizar' : 'joystick'; Config.salvar(); }, { tam: 18 });
+    texto(g, usouToque ? 'Deslize para mover · toque para atirar · ★ especial · 💣 bomba' : 'Setas/WASD mover · Espaço atirar · X especial · C bomba · P pausar · M som', W / 2, 510, 15, CINZA, 'center', true, 600);
   }
 
   // ---------------------------------------------------------- telas de menu
@@ -1573,86 +1603,107 @@ class Jogo {
     titulo(g, 'NAVINHA', 106, q, 72);
     texto(g, 'E S P A C I A L', W / 2, 142, 22, CIANO, 'center');
     ['JOGAR', 'CONFIGURAÇÕES', 'COMO JOGAR', 'RECORDES'].forEach((s, i) =>
-      botao(g, s, W / 2, 210 + i * 60, 300, 48, () => this.acaoMenu(i), { sel: i === this.opcaoMenu && !usouToque, tam: i === 0 ? 24 : 18, cor: i === 0 ? AMARELO : undefined }));
-    moedas(g, W - 16, 30, Dados.prog.creditos, Dados.prog.cristais, 16, 'right');
-    botao(g, Som.mudo ? '🔇' : '🔊', W - 40, H - 36, 52, 44, () => this.alternarSom(), { tam: 20 });
-    if (document.fullscreenEnabled) botao(g, '⛶', W - 100, H - 36, 52, 44, () => alternarTelaCheia(), { tam: 22 });
-    if (!instalado()) botao(g, '📲 Instalar', W - 210, H - 36, 150, 44, () => instalar(), { tam: 15 });
-    if (Dados.recordes.length) { const r = Dados.recordes[0]; texto(g, `RECORDE: ${r.nome} — ${fmt(r.pontos)}`, W / 2, 470, 15, '#ffaa50', 'center'); }
-    texto(g, usouToque ? 'Toque para escolher' : '↑ ↓ escolher · ENTER confirmar · M som', W / 2, 500, 12, CINZA, 'center', true, 600);
-    texto(g, 'Jamerson Rafael · v' + VERSAO, 14, H - 12, 11, '#787d96', 'left', true, 600);
+      botao(g, s, W / 2, 218 + i * 68, 360, 58, () => this.acaoMenu(i), { sel: i === this.opcaoMenu && !usouToque, tam: i === 0 ? 28 : 22, cor: i === 0 ? AMARELO : undefined }));
+    moedas(g, W - 16, 32, Dados.prog.creditos, Dados.prog.cristais, 20, 'right');
+    botao(g, Som.mudo ? '🔇' : '🔊', W - 44, H - 40, 64, 56, () => this.alternarSom(), { tam: 26 });
+    if (document.fullscreenEnabled) botao(g, '⛶', W - 116, H - 40, 64, 56, () => alternarTelaCheia(), { tam: 26 });
+    if (!instalado()) botao(g, '📲 Instalar', W - 250, H - 40, 170, 56, () => instalar(), { tam: 19 });
+    if (Dados.recordes.length) { const r = Dados.recordes[0]; texto(g, `RECORDE: ${r.nome} — ${fmt(r.pontos)}`, W / 2, 490, 18, '#ffaa50', 'center'); }
+    if (!usouToque) texto(g, '↑ ↓ escolher · ENTER confirmar · M som', W / 2, 516, 15, CINZA, 'center', true, 600);
+    texto(g, 'v' + VERSAO, 14, H - 12, 15, '#787d96', 'left', true, 600);
   }
 
   telaHangar(g) {
     const nave = NAVES[this.naveHangar], dono = Dados.dono(nave.id), pc = Dados.pecas(nave.id), at = atributos(nave, pc);
-    texto(g, 'HANGAR', 20, 40, 30, '#fff');
-    moedas(g, W - 20, 38, Dados.prog.creditos, Dados.prog.cristais, 18, 'right');
+    texto(g, 'HANGAR', 20, 40, 32, '#fff');
+    moedas(g, W - 20, 40, Dados.prog.creditos, Dados.prog.cristais, 22, 'right');
     // --- nave
-    const lw = Math.min(420, W * 0.44), lx = 16;
-    painel(g, lx, 56, lw, 420);
+    const lw = Math.min(400, W * 0.44), lx = 14;
+    painel(g, lx, 56, lw, 418);
     const s = Arte.nave(nave.id, pc, Math.floor(this.quadro / 4)), big = Arte.ampliar(s.img, 3);
     g.globalAlpha = dono ? 1 : 0.35;
-    g.drawImage(big, lx + lw / 2 - big.width / 2, 78 + Math.sin(this.quadro * 0.05) * 4);
+    g.drawImage(big, lx + lw / 2 - big.width / 2, 74 + Math.sin(this.quadro * 0.05) * 4);
     g.globalAlpha = 1;
-    botao(g, '‹', lx + 30, 132, 44, 64, () => { this.naveHangar = (this.naveHangar + NAVES.length - 1) % NAVES.length; }, { tam: 30 });
-    botao(g, '›', lx + lw - 30, 132, 44, 64, () => { this.naveHangar = (this.naveHangar + 1) % NAVES.length; }, { tam: 30 });
-    texto(g, nave.nome.toUpperCase(), lx + lw / 2, 214, 26, rgba(nave.cor, 1), 'center');
-    texto(g, nave.desc, lx + lw / 2, 236, 13, '#fff', 'center', true, 600);
-    NAVES.forEach((n, i) => { g.fillStyle = i === this.naveHangar ? '#fff' : Dados.dono(n.id) ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.15)'; g.fillRect(lx + lw / 2 - NAVES.length * 7 + i * 14, 246, 8, 4); });
+    botao(g, '‹', lx + 32, 128, 54, 76, () => { this.naveHangar = (this.naveHangar + NAVES.length - 1) % NAVES.length; }, { tam: 36 });
+    botao(g, '›', lx + lw - 32, 128, 54, 76, () => { this.naveHangar = (this.naveHangar + 1) % NAVES.length; }, { tam: 36 });
+    texto(g, nave.nome.toUpperCase(), lx + lw / 2, 212, 30, rgba(nave.cor, 1), 'center');
+    texto(g, nave.desc, lx + lw / 2, 236, 15, '#fff', 'center', true, 600);
+    NAVES.forEach((n, i) => { g.fillStyle = i === this.naveHangar ? '#fff' : Dados.dono(n.id) ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.15)'; g.fillRect(lx + lw / 2 - NAVES.length * 8 + i * 16, 246, 9, 5); });
     const vals = [['Velocidade', at.vel / 7], ['Resistência', at.vidas / 7], ['Poder de fogo', Math.min(1, at.dano * 60 / at.cadencia / 10 + (nave.perfurante || nave.encadeia ? 0.15 : 0))]];
-    vals.forEach(([r, v], k) => { texto(g, r, lx + 20, 276 + k * 30, 11, CINZA); barra(g, lx + 20, 281 + k * 30, lw - 40, 9, v, rgba(nave.cor, 1)); });
-    texto(g, 'ESPECIAL: ' + nave.especial, lx + 20, 380, 13, AMARELO);
-    quebrar(g, nave.descEsp, lx + 20, 400, lw - 40, 12, '#fff');
-    texto(g, `${at.vidas} vidas · ${at.bombas} bombas${at.drones ? ' · ' + at.drones + ' drone' + (at.drones > 1 ? 's' : '') : ''}${at.escudoInicial ? ' · escudo' : ''}`, lx + 20, 452, 12, CIANO);
+    vals.forEach(([r, v], k) => { texto(g, r, lx + 18, 276 + k * 32, 15, CINZA); barra(g, lx + 18, 282 + k * 32, lw - 36, 11, v, rgba(nave.cor, 1)); });
+    texto(g, 'ESPECIAL: ' + nave.especial, lx + 18, 384, 16, AMARELO);
+    quebrar(g, nave.descEsp, lx + 18, 404, lw - 36, 15, '#fff');
+    texto(g, `${at.vidas} vidas · ${at.bombas} bombas${at.drones ? ' · ' + at.drones + ' drone' + (at.drones > 1 ? 's' : '') : ''}${at.escudoInicial ? ' · escudo' : ''}`, lx + 18, 464, 15, CIANO);
     // --- peças ou compra
-    const rx = lx + lw + 14, rw = W - rx - 16;
-    painel(g, rx, 56, rw, 420);
+    const rx = lx + lw + 12, rw = W - rx - 14;
+    painel(g, rx, 56, rw, 418);
     if (dono) {
-      texto(g, 'PEÇAS', rx + 18, 84, 15, AMARELO);
-      texto(g, 'cada peça aparece na nave', rx + rw - 18, 84, 11, CINZA, 'right', true, 600);
+      texto(g, 'PEÇAS', rx + 16, 82, 18, AMARELO);
       PECAS.forEach((pe, k) => {
-        const y = 100 + k * 74, lv = pc[pe.id], custo = Dados.custoMelhoria(nave.id, pe.id);
-        g.drawImage(Arte.iconePeca(pe.id), rx + 16, y + 10);
-        texto(g, pe.nome, rx + 60, y + 24, 16, '#fff');
-        for (let i = 0; i < 5; i++) { g.fillStyle = i < lv ? AMARELO : '#3c3c50'; g.fillRect(rx + 60 + i * 15, y + 32, 12, 7); }
-        const bw = 124, bxx = rx + rw - bw / 2 - 14;
+        const y = 92 + k * 76, lv = pc[pe.id], custo = Dados.custoMelhoria(nave.id, pe.id);
+        g.drawImage(Arte.iconePeca(pe.id), rx + 14, y + 8);
+        texto(g, pe.nome, rx + 58, y + 24, 20, '#fff');
+        for (let i = 0; i < 5; i++) { g.fillStyle = i < lv ? AMARELO : '#3c3c50'; g.fillRect(rx + 58 + i * 20, y + 32, 16, 9); }
+        const bw = 150, bxx = rx + rw - bw / 2 - 12;
         const prox = lv < 5 ? pe.niveis[lv] : 'Nível máximo';
-        quebrar(g, (lv < 5 ? 'Próximo: ' : '') + prox, rx + 60, y + 56, rw - 60 - bw - 30, 11, lv < 5 ? CINZA : '#78ff96');
+        texto(g, (lv < 5 ? '▲ ' : '✔ ') + prox, rx + 16, y + 64, 15, lv < 5 ? '#d4daf5' : '#78ff96', 'left', true, 600);
         if (custo) {
-          const pode = Dados.podePagar(custo.c, custo.d || 0);
-          botao(g, `¢${fmt(custo.c)}${custo.d ? ' 💎' + custo.d : ''}`, bxx, y + 30, bw, 40, () => {
-            if (Dados.melhorar(nave.id, pe.id)) { Som.tocar('compra'); this.efeitos.texto(bxx, y + 10, 'MELHORADO!', [120, 255, 160], 14); vibrar(30); }
-          }, { tam: 15, desligado: !pode, cor: AMARELO, aoDesligado: () => this.aviso('Faltam moedas ou cristais — jogue para juntar mais', [255, 160, 120]) });
-        } else texto(g, 'MÁX', bxx, y + 36, 16, '#78ff96', 'center');
-        if (k < 4) { g.fillStyle = 'rgba(120,150,255,.15)'; g.fillRect(rx + 14, y + 70, rw - 28, 1); }
+          const pode = Dados.podePagar(custo.c, custo.d || 0), falta = Math.max(0, custo.c - Dados.prog.creditos);
+          const rot = pode ? `¢${fmt(custo.c)}${custo.d ? ' 💎' + custo.d : ''}` : (falta > 0 ? `falta ¢${fmt(falta)}` : `falta 💎${custo.d - Dados.prog.cristais}`);
+          botao(g, rot, bxx, y + 28, bw, 48, () => {
+            if (Dados.melhorar(nave.id, pe.id)) { Som.tocar('compra'); this.efeitos.texto(bxx, y + 10, 'MELHORADO!', [120, 255, 160], 18); vibrar(30); }
+          }, { tam: 18, desligado: !pode, cor: pode ? '#fff' : AMARELO, fundo: pode ? 'rgba(40,170,90,.55)' : undefined, borda: pode ? '#6dff9e' : undefined, aoDesligado: () => this.aviso('Jogue mais partidas para juntar moedas e cristais', [255, 160, 120]) });
+        } else texto(g, 'MÁX', bxx, y + 36, 22, '#78ff96', 'center');
+        if (k < 4) { g.fillStyle = 'rgba(120,150,255,.15)'; g.fillRect(rx + 14, y + 72, rw - 28, 1); }
       });
     } else {
-      texto(g, '🔒 NAVE BLOQUEADA', rx + rw / 2, 150, 22, '#ff8a8a', 'center');
+      texto(g, '🔒 NAVE BLOQUEADA', rx + rw / 2, 150, 26, '#ff8a8a', 'center');
       const preco = `¢ ${fmt(nave.preco)}${nave.cristais ? '  +  💎 ' + nave.cristais : ''}`;
-      texto(g, preco, rx + rw / 2, 200, 26, AMARELO, 'center');
-      if (nave.condicao) texto(g, nave.condicao, rx + rw / 2, 232, 14, CINZA, 'center', true, 600);
+      texto(g, preco, rx + rw / 2, 204, 32, AMARELO, 'center');
+      if (nave.condicao) texto(g, nave.condicao, rx + rw / 2, 236, 17, CINZA, 'center', true, 600);
       const pode = Dados.podePagar(nave.preco, nave.cristais || 0);
-      botao(g, 'Comprar nave', rx + rw / 2, 290, 240, 54, () => {
+      botao(g, 'Comprar nave', rx + rw / 2, 296, 280, 64, () => {
         if (Dados.comprarNave(nave.id)) { Som.tocar('compra'); this.aviso(`${nave.nome.toUpperCase()} É SUA!`, nave.cor); vibrar([40, 40, 80]); }
-      }, { tam: 19, desligado: !pode, cor: AMARELO, aoDesligado: () => this.aviso('Moedas insuficientes — jogue mais partidas', [255, 160, 120]) });
-      quebrar(g, 'Junte moedas destruindo inimigos e cristais derrotando peças de chefes e cumprindo desafios.', rx + 30, 360, rw - 60, 13, CINZA);
+      }, { tam: 24, desligado: !pode, cor: pode ? '#fff' : AMARELO, fundo: pode ? 'rgba(40,170,90,.55)' : undefined, borda: pode ? '#6dff9e' : undefined, aoDesligado: () => this.aviso('Moedas insuficientes — jogue mais partidas', [255, 160, 120]) });
+      quebrar(g, 'Junte moedas destruindo inimigos e cristais derrotando peças de chefes.', rx + 24, 372, rw - 48, 16, CINZA);
     }
-    botao(g, '← Menu', 86, H - 32, 140, 44, () => this.trocar('MENU'), { tam: 16 });
-    botao(g, dono ? `🚀 DECOLAR com ${nave.nome}` : 'Escolha uma nave sua', W / 2 + 60, H - 32, 320, 48, () => this.decolar(), { tam: 18, cor: AMARELO, desligado: !dono });
+    botao(g, '← Menu', 90, H - 32, 150, 52, () => this.trocar('MENU'), { tam: 19 });
+    botao(g, dono ? `🚀 JOGAR com ${nave.nome}` : 'Escolha uma nave sua', W / 2 + 70, H - 32, 360, 56, () => this.decolar(), { tam: 22, cor: AMARELO, desligado: !dono });
     this.efeitos.desenhar(g);
+  }
+
+  telaMapa(g) {
+    texto(g, 'ESCOLHA A FASE', W / 2, 42, 32, '#fff', 'center');
+    const d = Config.dificuldade, ids = ['facil', 'normal', 'dificil'];
+    ids.forEach((id, i) => botao(g, DIFS[id].nome, W / 2 + (i - 1) * 170, 86, 160, 50, () => { Config.dificuldade = id; Config.salvar(); },
+      { sel: d === id, tam: 21, cor: d === id ? AMARELO : '#fff' }));
+    texto(g, DIFS[d].nota, W / 2, 128, 17, CINZA, 'center', true, 600);
+    const cw = Math.min(150, (W - 40 - 4 * 12) / 5), x0 = W / 2 - (5 * cw + 4 * 12) / 2;
+    for (let n = 1; n <= 10; n++) {
+      const k = (n - 1) % 5, row = Math.floor((n - 1) / 5), x = x0 + k * (cw + 12), y = 172 + row * 150, h = 130;
+      if (k === 0) texto(g, row === 0 ? 'SETOR 1' : 'SETOR 2 · mais difícil', x, y - 8, 16, AMARELO);
+      const lib = Dados.liberada(n), est = Dados.estrelas(n), sel = this.noMapa === n && !usouToque;
+      caixa(g, x, y, cw, h, 14, lib ? 'rgba(10,16,40,.9)' : 'rgba(20,20,30,.8)', sel ? AMARELO : est >= 3 ? '#ffd650' : lib ? 'rgba(120,150,255,.55)' : 'rgba(255,255,255,.12)', sel ? 4 : 2);
+      texto(g, lib ? String(n) : '🔒', x + cw / 2, y + 50, 40, lib ? '#fff' : '#6a6e84', 'center', lib);
+      texto(g, FASES[k].nome, x + cw / 2, y + 78, 15, lib ? CINZA : '#555a70', 'center', false, 600);
+      for (let i = 0; i < 3; i++) texto(g, '★', x + cw / 2 + (i - 1) * 34, y + 114, 30, i < est ? AMARELO : '#3c3c50', 'center', false);
+      botoes.push({ x, y, w: cw, h, acao: () => { this.noMapa = n; if (lib) { Som.tocar('menu'); this.iniciarDoMapa(n); } else { Som.tocar('erro'); this.aviso(`Complete a fase ${n - 1} para liberar`, [255, 160, 120]); } } });
+    }
+    texto(g, '★ concluir   ★★ cumprir o desafio   ★★★ sem perder vida', W / 2, 486, 16, CINZA, 'center', true, 600);
+    botao(g, '← Hangar', 100, H - 28, 160, 48, () => this.trocar('HANGAR'), { tam: 19 });
   }
 
   telaConfig(g) {
     texto(g, 'CONFIGURAÇÕES', W / 2, 46, 30, '#fff', 'center');
     const w = Math.min(620, W - 40), x = W / 2 - w / 2;
-    painel(g, x, 62, w, 400);
+    painel(g, x, 62, w, 412);
     const linha = (i, rotulo, valor, menos, mais) => {
-      const y = 98 + i * 52;
-      texto(g, rotulo, x + 24, y + 6, 16, '#fff', 'left', true, 700);
-      if (menos) botao(g, '−', x + w - 200, y, 48, 40, menos, { tam: 22 });
-      texto(g, valor, x + w - 120, y + 7, 16, AMARELO, 'center');
-      if (mais) botao(g, '+', x + w - 40, y, 48, 40, mais, { tam: 22 });
-      g.fillStyle = 'rgba(120,150,255,.12)'; g.fillRect(x + 16, y + 24, w - 32, 1);
+      const y = 100 + i * 56;
+      texto(g, rotulo, x + 24, y + 7, 18, '#fff', 'left', true, 700);
+      if (menos) botao(g, '−', x + w - 214, y, 58, 46, menos, { tam: 28 });
+      texto(g, valor, x + w - 124, y + 7, 17, AMARELO, 'center');
+      if (mais) botao(g, '+', x + w - 42, y, 58, 46, mais, { tam: 28 });
+      g.fillStyle = 'rgba(120,150,255,.12)'; g.fillRect(x + 16, y + 27, w - 32, 1);
     };
     const alternarControle = () => { Config.controle = Config.controle === 'joystick' ? 'deslizar' : 'joystick'; Config.salvar(); };
     linha(0, 'Controle no celular', Config.controle === 'joystick' ? 'Joystick' : 'Deslizar', alternarControle, alternarControle);
@@ -1662,9 +1713,9 @@ class Jogo {
     const alternarVib = () => { Config.vibrar = !Config.vibrar; Config.salvar(); vibrar(40); };
     linha(4, 'Vibração', Config.vibrar ? 'Ligada' : 'Desligada', alternarVib, alternarVib);
     const alternarVis = () => { Config.visual = Config.visual === 'leve' ? 'completo' : 'leve'; Config.salvar(); };
-    linha(5, 'Efeitos visuais', Config.visual === 'leve' ? 'Leve (celular fraco)' : 'Completo', alternarVis, alternarVis);
-    botao(g, '🎓 Rever tutorial na próxima partida', W / 2, 425, 340, 40, () => { Dados.prog.tutorial = false; Dados.salvar(); this.aviso('O tutorial vai aparecer na próxima partida', [120, 255, 160]); }, { tam: 14 });
-    botao(g, '← Voltar', W / 2, H - 34, 180, 44, () => this.trocar('MENU'), { tam: 16 });
+    linha(5, 'Efeitos visuais', Config.visual === 'leve' ? 'Leve' : 'Completo', alternarVis, alternarVis);
+    botao(g, '🎓 Rever tutorial na próxima partida', W / 2, 440, 420, 48, () => { Dados.prog.tutorial = false; Dados.salvar(); this.aviso('O tutorial vai aparecer na próxima partida', [120, 255, 160]); }, { tam: 17 });
+    botao(g, '← Voltar', W / 2, H - 34, 200, 52, () => this.trocar('MENU'), { tam: 19 });
   }
 
   telaComoJogar(g) {
@@ -1711,14 +1762,15 @@ class Jogo {
     }
     botao(g, '← Voltar', W / 2, H - 28, 180, 42, () => this.trocar('MENU'), { tam: 16 });
   }
-  tabelaRecordes(g, y, destaque) {
+  tabelaRecordes(g, y, destaque, h = 372) {
     const w = Math.min(620, W - 40), x = W / 2 - w / 2;
-    painel(g, x, y, w, 372);
-    [['#', 24], ['PILOTO', 70], ['NAVE', w * 0.5], ['FASE', w * 0.68]].forEach(([s, dx]) => texto(g, s, x + dx, y + 28, 11, CINZA));
-    texto(g, 'PONTOS', x + w - 24, y + 28, 11, CINZA, 'right');
+    painel(g, x, y, w, h);
+    [['#', 24], ['PILOTO', 70], ['NAVE', w * 0.5], ['FASE', w * 0.68]].forEach(([s, dx]) => texto(g, s, x + dx, y + 28, 15, CINZA));
+    texto(g, 'PONTOS', x + w - 24, y + 28, 15, CINZA, 'right');
     if (!Dados.recordes.length) texto(g, 'Nenhum recorde ainda. Seja o primeiro!', W / 2, y + 110, 17, CINZA, 'center');
     const med = ['#ffcd3c', '#c8d2e1', '#d78c50'];
     Dados.recordes.forEach((r, i) => {
+      if (y + 62 + i * 31 > y + h - 8) return;
       const yy = y + 62 + i * 31, c = med[i] || '#fff';
       if (i === destaque) { g.fillStyle = `rgba(255,214,80,${pisca(this.quadro, 20) ? 0.2 : 0.1})`; g.fillRect(x + 8, yy - 21, w - 16, 29); }
       texto(g, (i + 1) + 'º', x + 22, yy, 16, c); texto(g, r.nome, x + 70, yy, 16, i === destaque ? AMARELO : '#fff');
@@ -1733,16 +1785,23 @@ class Jogo {
   }
   telaGameOver(g) {
     const v = this.faseRecorde === 'Venceu!', p = this.player, gf = this.ganhoFinal || { moedas: 0, bonus: 0, cristais: 0 };
-    texto(g, v ? 'MISSÃO CUMPRIDA' : 'FIM DE JOGO', W / 2, 44, 32, v ? AMARELO : '#ff5050', 'center');
+    texto(g, v ? 'MISSÃO CUMPRIDA' : 'FIM DE JOGO', W / 2, 46, 36, v ? AMARELO : '#ff5050', 'center');
     const prec = Math.min(100, Math.round(this.acertos * 100 / Math.max(1, p.tirosDisparados)));
-    texto(g, `${fmt(this.pontos)} pts · Fase ${this.faseRecorde} · ${this.abatesTotal} abates · Precisão ${prec}% · Combo máx. ${this.maiorCombo}`, W / 2, 70, 14, '#fff', 'center', true, 700);
-    const ganhos = `Ganhou: ¢ ${gf.moedas} em moedas + ¢ ${gf.bonus} de bônus${gf.cristais ? ' · 💎 ' + gf.cristais : ''}   →   total ¢ ${fmt(Dados.prog.creditos)} · 💎 ${Dados.prog.cristais}`;
-    texto(g, ganhos, W / 2, 94, 14, AMARELO, 'center', true, 700);
-    this.tabelaRecordes(g, 106, this.posRecorde);
+    const cards = [['PONTOS', fmt(this.pontos)], ['FASE', this.faseRecorde], ['ABATES', this.abatesTotal], ['PRECISÃO', prec + '%'], ['COMBO MÁX.', this.maiorCombo]];
+    const cw = Math.min(150, (W - 40 - 40) / 5), tx = W / 2 - (5 * cw + 40) / 2;
+    cards.forEach(([r, val], i) => {
+      const x = tx + i * (cw + 10), sv = String(val);
+      caixa(g, x, 66, cw, 76, 12, 'rgba(8,10,24,.84)', 'rgba(120,150,255,.3)');
+      texto(g, r, x + cw / 2, 88, 15, CINZA, 'center');
+      texto(g, sv, x + cw / 2, 126, largura(g, sv, 28) > cw - 12 ? 21 : 28, i === 0 ? AMARELO : '#fff', 'center');
+    });
+    texto(g, `Ganhou ¢ ${fmt(gf.moedas + gf.bonus)}${gf.cristais ? ' · 💎 ' + gf.cristais : ''}   ·   Total ¢ ${fmt(Dados.prog.creditos)} · 💎 ${Dados.prog.cristais}`, W / 2, 172, 20, AMARELO, 'center', true, 700);
+    this.tabelaRecordes(g, 190, this.posRecorde, 176);
     if (this.timer > 40) {
-      botao(g, 'Menu', W / 2 - 250, H - 32, 150, 44, () => this.trocar('MENU'), { tam: 16 });
-      botao(g, '🔧 Hangar', W / 2 - 50, H - 32, 200, 44, () => this.trocar('HANGAR'), { tam: 16, cor: AMARELO });
-      botao(g, '↻ Jogar de novo', W / 2 + 190, H - 32, 220, 44, () => this.novaPartida(p.tipo), { tam: 16 });
+      if (this.chegouChefe && !v) botao(g, '↺ Tentar o chefe de novo', W / 2, 400, 440, 58, () => this.iniciarDoMapa((this.ciclo - 1) * 5 + this.fase.n, true), { tam: 23, cor: '#fff', fundo: 'rgba(200,60,50,.55)', borda: '#ff8a7a' });
+      botao(g, 'Menu', W / 2 - 250, H - 36, 150, 56, () => this.trocar('MENU'), { tam: 20 });
+      botao(g, '🔧 Hangar', W / 2 - 60, H - 36, 190, 56, () => this.trocar('HANGAR'), { tam: 20, cor: AMARELO });
+      botao(g, '↻ Jogar de novo', W / 2 + 190, H - 36, 240, 56, () => this.iniciarDoMapa(this.nodoInicio), { tam: 20 });
     }
   }
 }
