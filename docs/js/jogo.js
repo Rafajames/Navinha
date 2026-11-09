@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.3.1';
+const VERSAO = '3.4.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -851,7 +851,26 @@ function botao(g, rotulo, cx, cy, w, h, acao, o = {}) {
   const x = cx - w / 2, y = cy - h / 2, off = o.desligado;
   caixa(g, x, y, w, h, 12, off ? 'rgba(30,30,44,.7)' : o.sel ? 'rgba(255,214,80,.16)' : o.fundo || 'rgba(10,14,34,.82)', off ? 'rgba(255,255,255,.12)' : o.sel ? AMARELO : o.borda || 'rgba(120,150,255,.4)', o.sel ? 3 : 2);
   texto(g, rotulo, cx, cy + (o.tam || 20) * 0.36, o.tam || 20, off ? '#6a6e84' : o.cor || (o.sel ? AMARELO : '#fff'), 'center');
-  botoes.push({ x, y, w, h, acao: () => { if (off) { Som.tocar('erro'); if (o.aoDesligado) o.aoDesligado(); return; } Som.tocar('menu'); acao(); } });
+  // área de toque maior que o desenho (6 px lógicos nas laterais, 8 em cima e embaixo); o visual não muda
+  const alvo = { x: x - 6, y: y - 8, w: w + 12, h: h + 16, dx: x, dy: y, dw: w, dh: h, bt: true, acao: () => { if (off) { Som.tocar('erro'); if (o.aoDesligado) o.aoDesligado(); return; } Som.tocar('menu'); acao(); } };
+  separarAlvo(alvo);
+  botoes.push(alvo);
+}
+/** Área de toque de um botão não pode invadir a de outro botão: se invadir, a folga entre os dois desenhos é dividida ao meio. */
+function separarAlvo(a) {
+  for (const b of botoes) {
+    if (!b.bt) continue;
+    const ox = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x), oy = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+    if (ox <= 0 || oy <= 0) continue;
+    if (a.dx < b.dx + b.dw && b.dx < a.dx + a.dw && a.dy < b.dy + b.dh && b.dy < a.dy + a.dh) continue; // os desenhos já se cruzam: não mexe
+    if (oy <= ox) {                                   // separa na vertical
+      if (a.dy >= b.dy + b.dh) { const m = (b.dy + b.dh + a.dy) / 2; b.h = m - b.y; a.h = a.y + a.h - m; a.y = m; }
+      else { const m = (a.dy + a.dh + b.dy) / 2; a.h = m - a.y; b.h = b.y + b.h - m; b.y = m; }
+    } else {                                          // separa na horizontal
+      if (a.dx >= b.dx + b.dw) { const m = (b.dx + b.dw + a.dx) / 2; b.w = m - b.x; a.w = a.x + a.w - m; a.x = m; }
+      else { const m = (a.dx + a.dw + b.dx) / 2; a.w = m - a.x; b.w = b.x + b.w - m; b.x = m; }
+    }
+  }
 }
 function titulo(g, s, y, q, tam = 70) {
   g.font = `900 ${tam}px ${FONTE}`; g.textAlign = 'center';
@@ -878,7 +897,7 @@ const TUTORIAL = [
 
 class Jogo {
   constructor() {
-    this.estado = 'MENU'; this.pausado = false; this.timer = 0; this.quadro = 0;
+    this.estado = DIARIA.situacao().status === 'pegar' ? 'DIARIA' : 'MENU'; this.pausado = false; this.timer = 0; this.quadro = 0;   // abre a recompensa do dia, se houver
     this.fundo = new Fundo(); this.efeitos = new Efeitos();
     this.opcaoMenu = 0; this.opcaoPausa = 0; this.posRecorde = -1;
     this.naveHangar = Math.max(0, NAVES.findIndex(n => n.id === Dados.prog.naveAtual));
@@ -894,7 +913,7 @@ class Jogo {
   trocar(e) {
     this.estado = e; this.timer = 0; Input.apertou.clear();
     if (!this.emPartida()) this.fundo.hiper = 0;
-    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES'].includes(e)) Som.tocarMusica('musica_menu');
+    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES', 'DIARIA'].includes(e)) Som.tocarMusica('musica_menu');
   }
   pausar() { if (this.estado !== 'MORRENDO') { this.pausado = true; this.opcaoPausa = 0; Input.soltarTudo(); } }
 
@@ -912,6 +931,7 @@ class Jogo {
       case 'MAPA': this.fundo.update(); this.teclasMapa(); break;
       case 'CONFIG': case 'COMO_JOGAR': case 'RECORDES': this.fundo.update(); if (Input.ap('Escape', 'Backspace')) this.trocar('MENU'); break;
       case 'NOME': this.fundo.update(); this.efeitos.update(); break;
+      case 'DIARIA': this.fundo.update(); this.efeitos.update(); this.teclasDiaria(); break;
       case 'GAME_OVER': this.fundo.update(); this.efeitos.update();
         if (this.timer > 40) { if (Input.ap('KeyR')) this.novaPartida(this.player.tipo, this.nodoInicio); else if (Input.ap('Enter')) this.trocar('HANGAR'); else if (Input.ap('Escape')) this.trocar('MENU'); }
         break;
@@ -924,6 +944,18 @@ class Jogo {
     if (Input.ap('ArrowUp', 'KeyW')) { this.opcaoMenu = (this.opcaoMenu + 3) % 4; Som.tocar('menu'); }
     if (Input.ap('ArrowDown', 'KeyS')) { this.opcaoMenu = (this.opcaoMenu + 1) % 4; Som.tocar('menu'); }
     if (Input.ap('Enter', 'Space')) { Som.tocar('menu'); this.acaoMenu(this.opcaoMenu); }
+    if (Input.ap('KeyG')) this.trocar('DIARIA');
+  }
+  teclasDiaria() {
+    const pode = DIARIA.situacao().status === 'pegar';
+    if (Input.ap('Enter', 'Space') && pode) this.pegarDiaria();
+    else if (Input.ap('Enter', 'Space', 'Escape', 'Backspace')) this.trocar('MENU');
+  }
+  pegarDiaria() {
+    const r = DIARIA.pegar();
+    if (!r) return;
+    Som.tocar('compra'); vibrar([30, 30, 60]);
+    this.efeitos.texto(W / 2, 300, `+¢${fmt(r.creditos)}${r.cristais ? '  +💎' + r.cristais : ''}`, [255, 214, 80], 30);
   }
   acaoMenu(i) { this.opcaoMenu = i; this.trocar(['HANGAR', 'CONFIG', 'COMO_JOGAR', 'RECORDES'][i]); }
   teclasHangar() {
@@ -1393,6 +1425,7 @@ class Jogo {
       case 'CONFIG': this.telaConfig(g); break;
       case 'COMO_JOGAR': this.telaComoJogar(g); break;
       case 'RECORDES': this.telaRecordes(g); break;
+      case 'DIARIA': this.telaDiaria(g); this.efeitos.desenhar(g); break;
       case 'NOME': this.efeitos.desenhar(g); break;
       case 'GAME_OVER': this.efeitos.desenhar(g); this.telaGameOver(g); break;
       default: this.desenharPartida(g);
@@ -1609,6 +1642,8 @@ class Jogo {
     if (document.fullscreenEnabled) botao(g, '⛶', W - 116, H - 40, 64, 56, () => alternarTelaCheia(), { tam: 26 });
     if (!instalado()) botao(g, '📲 Instalar', W - 250, H - 40, 170, 56, () => instalar(), { tam: 19 });
     if (Dados.recordes.length) { const r = Dados.recordes[0]; texto(g, `RECORDE: ${r.nome} — ${fmt(r.pontos)}`, W / 2, 490, 18, '#ffaa50', 'center'); }
+    const diaria = DIARIA.situacao().status === 'pegar';
+    botao(g, diaria ? '🎁 Diária !' : '🎁 Diária', 100, H - 86, 170, 56, () => this.trocar('DIARIA'), { tam: 19, cor: diaria ? AMARELO : undefined });
     if (!usouToque) texto(g, '↑ ↓ escolher · ENTER confirmar · M som', W / 2, 516, 15, CINZA, 'center', true, 600);
     texto(g, 'v' + VERSAO, 14, H - 12, 15, '#787d96', 'left', true, 600);
   }
@@ -1715,6 +1750,36 @@ class Jogo {
     const alternarVis = () => { Config.visual = Config.visual === 'leve' ? 'completo' : 'leve'; Config.salvar(); };
     linha(5, 'Efeitos visuais', Config.visual === 'leve' ? 'Leve' : 'Completo', alternarVis, alternarVis);
     botao(g, '🎓 Rever tutorial na próxima partida', W / 2, 440, 420, 48, () => { Dados.prog.tutorial = false; Dados.salvar(); this.aviso('O tutorial vai aparecer na próxima partida', [120, 255, 160]); }, { tam: 17 });
+    botao(g, '← Voltar', W / 2, H - 34, 200, 52, () => this.trocar('MENU'), { tam: 19 });
+  }
+
+  telaDiaria(g) {
+    const s = DIARIA.situacao(), pw = Math.min(800, W - 40), px = W / 2 - pw / 2, py = 50, ph = 420, q = this.quadro;
+    painel(g, px, py, pw, ph);
+    const pegar = s.status === 'pegar', cab = { pegar: `Recompensa diária: dia ${s.dia} de 7`, pegou: `Você já pegou hoje: dia ${s.dia} de 7`, relogio: 'A data do aparelho voltou no tempo' }[s.status];
+    texto(g, 'RECOMPENSA DIÁRIA', W / 2, py + 46, 30, AMARELO, 'center');
+    texto(g, cab, W / 2, py + 76, 20, '#fff', 'center');
+    // sete dias do ciclo; o dia atual fica destacado
+    const gap = 8, cw = (pw - 40 - 6 * gap) / 7, ch = 110, cy = py + 96;
+    for (let i = 0; i < 7; i++) {
+      const dia = i + 1, x = px + 20 + i * (cw + gap), atual = dia === s.dia, borda = atual ? (pegar ? (pisca(q, 20) ? AMARELO : 'rgba(255,214,80,.5)') : s.status === 'pegou' ? '#78ff96' : CIANO) : 'rgba(120,150,255,.3)';
+      caixa(g, x, cy, cw, ch, 10, 'rgba(10,14,34,.82)', borda, atual ? 3 : 2);
+      texto(g, `DIA ${dia}`, x + cw / 2, cy + 24, 15, atual ? '#fff' : CINZA, 'center');
+      texto(g, `¢${DIARIA.PREMIOS[i]}`, x + cw / 2, cy + 60, 19, AMARELO, 'center');
+      if (dia === 7) texto(g, '+ 💎1', x + cw / 2, cy + 90, 15, ROSA, 'center');
+      if (atual) texto(g, { pegar: 'HOJE', pegou: '✓ PEGO', relogio: 'SALVO' }[s.status], x + cw / 2, cy + ch + 20, 15, borda, 'center');
+    }
+    if (pegar) {
+      const premio = DIARIA.PREMIOS[s.dia - 1];
+      texto(g, `Hoje: ¢${fmt(premio)}${s.dia === 7 ? ' + 💎1' : ''}`, W / 2, py + 320, 22, AMARELO, 'center');
+      texto(g, s.dia === 1 ? 'Toque em Pegar para começar a sequência.' : 'Pule um dia e a sequência volta ao dia 1.', W / 2, py + 346, 16, CINZA, 'center', true, 600);
+      botao(g, `Pegar ¢${fmt(premio)}${s.dia === 7 ? ' + 💎1' : ''}`, W / 2, py + 384, 340, 56, () => this.pegarDiaria(), { fundo: AMARELO, borda: AMARELO, cor: '#1a1400', tam: 22 });
+    } else {
+      const amanha = s.status === 'pegou' ? (s.dia % 7) + 1 : s.dia;
+      const linha = s.status === 'pegou' ? `Amanhã: dia ${amanha} · ¢${fmt(DIARIA.PREMIOS[amanha - 1])}${amanha === 7 ? ' + 💎1' : ''}` : `Sequência guardada no dia ${s.dia} de 7`;
+      texto(g, linha, W / 2, py + 320, 22, AMARELO, 'center');
+      texto(g, s.status === 'pegou' ? 'Volte amanhã para continuar a sequência.' : 'A recompensa volta quando a data avançar.', W / 2, py + 346, 16, CINZA, 'center', true, 600);
+    }
     botao(g, '← Voltar', W / 2, H - 34, 200, 52, () => this.trocar('MENU'), { tam: 19 });
   }
 

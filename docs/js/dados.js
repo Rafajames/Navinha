@@ -80,11 +80,25 @@ const Dados = {
     if (p.tita) p.naves.TITA.dono = true;                         // progresso da versão 2.0
     if (p.desafios >= 3) p.naves.FANTASMA.dono = true;
     p.naveAtual = p.naveAtual || 'FALCAO';
+    // recompensa diária (versão 3.4): último dia coletado (AAAA-MM-DD) e dia do ciclo (1 a 7; 0 = nenhum)
+    if (!p.diaria || typeof p.diaria !== 'object') p.diaria = {};
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(p.diaria.ultimoDia || '')) p.diaria.ultimoDia = '';
+    p.diaria.sequencia = Number.isInteger(p.diaria.sequencia) && p.diaria.sequencia >= 0 && p.diaria.sequencia <= 7 ? p.diaria.sequencia : 0;
     this.salvar();
   },
   salvar() {
     armaz.gravar('navinha.recordes', JSON.stringify(this.recordes));
+    this.reconciliarDiaria();
     armaz.gravar('navinha.progresso', JSON.stringify(this.prog));
+  },
+  /** Outra aba pode ter pego a recompensa diária depois que esta carregou: fica a mais recente gravada (ultimoDia e sequência juntos). */
+  reconciliarDiaria() {
+    let salvo;
+    try { salvo = (JSON.parse(armaz.ler('navinha.progresso')) || {}).diaria; } catch (_) { return; }
+    if (!salvo || typeof salvo !== 'object' || !/^\d{4}-\d{2}-\d{2}$/.test(salvo.ultimoDia || '')) return;
+    if (!this.prog.diaria || salvo.ultimoDia > (this.prog.diaria.ultimoDia || '')) {
+      this.prog.diaria = { ultimoDia: salvo.ultimoDia, sequencia: Number.isInteger(salvo.sequencia) && salvo.sequencia >= 0 && salvo.sequencia <= 7 ? salvo.sequencia : 0 };
+    }
   },
   estado(id) { return this.prog.naves[id]; },
   dono(id) { return this.prog.naves[id].dono; },
@@ -109,6 +123,40 @@ const Dados = {
     const r = { nome, pontos, fase, nave, id: Date.now() };
     this.recordes.push(r); this.recordes.sort((a, b) => b.pontos - a.pontos); this.recordes = this.recordes.slice(0, 10);
     this.prog.nome = nome; this.salvar(); return this.recordes.indexOf(r);
+  },
+};
+
+// ============================================================ recompensa diária
+/** Data local do aparelho em AAAA-MM-DD. */
+function hojeLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+/** Dias de calendário de a até b (b - a); negativo se o relógio voltou. Usa UTC para não sofrer com horário de verão. */
+function diasEntre(a, b) {
+  const ms = s => { const [y, m, d] = s.split('-').map(Number); return Date.UTC(y, m - 1, d); };
+  return Math.round((ms(b) - ms(a)) / 86400000);
+}
+const DIARIA = {
+  PREMIOS: [100, 150, 200, 250, 300, 400, 500],          // ¢ do dia 1 ao 7; o dia 7 também dá 1 cristal
+  /** 'pegar' (prêmio de hoje disponível), 'pegou' (já pegou hoje) ou 'relogio' (data voltou no tempo). dia = dia do ciclo. */
+  situacao(hoje = hojeLocal()) {
+    const { ultimoDia, sequencia } = Dados.prog.diaria;
+    if (!ultimoDia) return { status: 'pegar', dia: 1 };
+    const d = diasEntre(ultimoDia, hoje);
+    if (d === 0) return { status: 'pegou', dia: sequencia || 1 };
+    if (d < 0) return { status: 'relogio', dia: sequencia || 1 };
+    // dia seguinte ao último: continua a sequência (dia 7 vira dia 1); pulou um dia ou mais: volta ao dia 1
+    return { status: 'pegar', dia: d === 1 && sequencia >= 1 ? (sequencia % 7) + 1 : 1 };
+  },
+  /** Entrega o prêmio de hoje, uma vez por dia. Retorna o que foi dado ou null. */
+  pegar() {
+    const s = this.situacao();
+    if (s.status !== 'pegar') return null;
+    const creditos = this.PREMIOS[s.dia - 1], cristais = s.dia === 7 ? 1 : 0;
+    Dados.prog.diaria = { ultimoDia: hojeLocal(), sequencia: s.dia };
+    Dados.ganhar(creditos, cristais);
+    return { dia: s.dia, creditos, cristais };
   },
 };
 

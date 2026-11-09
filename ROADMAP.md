@@ -14,6 +14,10 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.4.0 (entregue)
+
+**Recompensa diária (pacote 8a)** — uma recompensa por dia de calendário (hora do aparelho): ¢100 no dia 1, subindo até ¢500 + 💎1 no dia 7; a sequência continua no dia seguinte e volta ao dia 1 se pular um dia; caixa "Recompensa diária" ao abrir o jogo e botão "🎁 Diária" no menu; relógio voltado não dá prêmio nem zera a sequência
+
 ## ✅ Versão 3.3.1 (entregue)
 
 **Correção do modo offline** — o service worker listava 3 imagens que não existem mais (`nave.png`, `inimigo.png`, `tiro.png`) e por isso não instalava: sem offline e sem aviso de "Nova versão disponível"
@@ -62,7 +66,9 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 ## 📋 Próximos pacotes (a escolher)
 
 ### 8 · Voltar todo dia
-- Recompensa diária, missões do dia, conquistas, continuar com cristais
+- 8b · Missões do dia
+- 8c · Conquistas
+- 8d · Continuar com cristais
 
 ### 6 · Publicação na Google Play
 - Empacotar como app Android (TWA/AAB a partir do GitHub Pages)
