@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.3.0';
+const VERSAO = '3.3.1';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;

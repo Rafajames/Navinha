@@ -1,6 +1,6 @@
 /* Service worker do Navinha: guarda o jogo para funcionar offline e permite atualizar.
  * Para publicar uma nova versão, basta mudar o número abaixo (e o VERSAO em js/jogo.js). */
-const VERSAO = 'navinha-3.3.0';
+const VERSAO = 'navinha-3.3.1';
 const ARQUIVOS = [
   './',
   'index.html',
@@ -19,7 +19,6 @@ const ARQUIVOS = [
   'assets/dano.mp3',
   'assets/erro.mp3',
   'assets/especial.mp3',
-  'assets/inimigo.png',
   'assets/menu.mp3',
   'assets/moeda.mp3',
   'assets/musica_chefe.mp3',
@@ -36,12 +35,10 @@ const ARQUIVOS = [
   'assets/musica_fase4.mp3',
   'assets/musica_fase5.mp3',
   'assets/musica_menu.mp3',
-  'assets/nave.png',
   'assets/powerup.mp3',
   'assets/raio.mp3',
   'assets/som_explosao.mp3',
   'assets/som_tiro.mp3',
-  'assets/tiro.png',
 ];
 
 self.addEventListener('install', e => {
