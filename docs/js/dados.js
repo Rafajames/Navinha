@@ -84,6 +84,16 @@ const Dados = {
     if (!p.diaria || typeof p.diaria !== 'object') p.diaria = {};
     if (!/^\d{4}-\d{2}-\d{2}$/.test(p.diaria.ultimoDia || '')) p.diaria.ultimoDia = '';
     p.diaria.sequencia = Number.isInteger(p.diaria.sequencia) && p.diaria.sequencia >= 0 && p.diaria.sequencia <= 7 ? p.diaria.sequencia : 0;
+    // história, carta da Lirrin, missões do dia e conquistas (versão 3.5)
+    const h = p.hist && typeof p.hist === 'object' ? p.hist : {}, num = v => Number.isFinite(v) && v >= 0 ? v : 0;
+    p.hist = {
+      cenas: h.cenas && typeof h.cenas === 'object' ? h.cenas : {},
+      cartaDia: /^\d{4}-\d{2}-\d{2}$/.test(h.cartaDia || '') ? h.cartaDia : '', cartaN: Math.floor(num(h.cartaN)),
+      missaoDia: /^\d{4}-\d{2}-\d{2}$/.test(h.missaoDia || '') ? h.missaoDia : '',
+      missoes: Array.isArray(h.missoes) ? h.missoes.filter(m => m && typeof m.id === 'string').map(m => ({ id: m.id, prog: num(m.prog), pego: !!m.pego })) : [],
+      stat: { abates: num((h.stat || {}).abates), chefes: num((h.stat || {}).chefes), fases: num((h.stat || {}).fases), moedas: num((h.stat || {}).moedas) },
+      conq: h.conq && typeof h.conq === 'object' ? h.conq : {},
+    };
     this.salvar();
   },
   salvar() {

@@ -1,17 +1,19 @@
 /* Service worker do Navinha: guarda o jogo para funcionar offline e permite atualizar.
  * Para publicar uma nova versão, basta mudar o número abaixo (e o VERSAO em js/jogo.js). */
-const VERSAO = 'navinha-3.4.0';
+const VERSAO = 'navinha-3.5.0';
 const ARQUIVOS = [
   './',
   'index.html',
   'js/arte.js',
   'js/dados.js',
+  'js/historia.js',
   'js/jogo.js',
   'js/fx.js',
   'manifest.webmanifest',
   'icons/apple-touch-icon.png',
   'icons/icon-192.png',
   'icons/icon-512.png',
+  'assets/retratos.png',
   'assets/acerto.mp3',
   'assets/alerta.mp3',
   'assets/bomba.mp3',

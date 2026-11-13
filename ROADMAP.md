@@ -14,6 +14,13 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.5.0 (entregue)
+
+**História "Crônicas do Cerne Umbralis" (pacotes 1 e 2)** — cenas com retratos e 4 expressões antes e depois do chefe das 10 fases (só na 1ª vez; botão Pular; dá para rever pelo Diário); carta nova da Lirrin a cada dia; diário de bordo com 30 páginas (1 por estrela); menu "📖 Diário" com bolinha de aviso
+**Voltar todo dia (pacote 8b, 8c e 8d)** — 3 missões do dia sorteadas pela data (prêmio em ¢ ou 💎); 8 conquistas com prêmio; ao perder todas as vidas dá para continuar de onde parou por 💎3 (1 vez por partida)
+- Arquivos novos: `docs/js/historia.js` (dados e regras), `docs/assets/retratos.png` (12 personagens × 4 expressões)
+- Ficou para depois: cenas do Setor 3 e escolhas/finais (dependem do mapa de 15 fases), cenas dos chefes com os nomes novos, Syrelith sem retrato
+
 ## ✅ Versão 3.4.0 (entregue)
 
 **Recompensa diária (pacote 8a)** — uma recompensa por dia de calendário (hora do aparelho): ¢100 no dia 1, subindo até ¢500 + 💎1 no dia 7; a sequência continua no dia seguinte e volta ao dia 1 se pular um dia; caixa "Recompensa diária" ao abrir o jogo e botão "🎁 Diária" no menu; relógio voltado não dá prêmio nem zera a sequência
@@ -65,10 +72,15 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ## 📋 Próximos pacotes (a escolher)
 
-### 8 · Voltar todo dia
-- 8b · Missões do dia
-- 8c · Conquistas
-- 8d · Continuar com cristais
+### 4 · Mapa de 15 fases (história)
+- Setor 3 · Reacender (fases 11 a 15), cenas, escolhas e finais (dois principais e um secreto com as 45 estrelas), chefe Ulthar-Vey
+- Diário com 45 páginas
+
+### 5 · Câmaras (dungeons)
+- 9 câmaras de 5 salas com Guardião, baús, relíquias, selos e poderes ativos; Chaves de Câmara
+
+### 3 · Arte dos personagens
+- Retrato da Syrelith (Rainha Carmim); nomes novos dos chefes no jogo
 
 ### 6 · Publicação na Google Play
 - Empacotar como app Android (TWA/AAB a partir do GitHub Pages)

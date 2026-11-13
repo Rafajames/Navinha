@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.4.0';
+const VERSAO = '3.5.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -762,7 +762,7 @@ class Player {
     Som.tocar(this.tipoArma === 'ELETRICO' ? 'raio' : 'tiro');
   }
   ativarEspecial(j) {
-    this.energia = 0; Som.tocar('especial');
+    this.energia = 0; Som.tocar('especial'); j.ev('especial');
     const base = { FALCAO: 60, COMETA: 240, TITA: 300, FANTASMA: 180, VESPA: 480, MARTELO: 60, AURORA: 180, RELAMPAGO: 180 }[this.tipo.id];
     this.especialAtivo = Math.round(base * this.at.duracaoEsp);
     switch (this.tipo.id) {
@@ -895,6 +895,15 @@ const TUTORIAL = [
   { toque: 'Pronto! Junte ¢ moedas e 💎 cristais para melhorar a nave no Hangar', pc: 'Pronto! Junte ¢ moedas e 💎 cristais para melhorar a nave no Hangar' },
 ];
 
+const IMG_RETR = new Image(); IMG_RETR.src = 'assets/retratos.png';   // 4 expressões x 12 personagens, 128 px cada
+function retrato(g, id, ex, x, y, tam) { const el = ELENCO[id]; if (el && IMG_RETR.complete && IMG_RETR.naturalWidth) g.drawImage(IMG_RETR, ex * 128, el.l * 128, 128, 128, x, y, tam, tam); }
+function linhasQuebradas(g, s, w, tam, peso = 600) {
+  const out = []; let l = '';
+  for (const p of s.split(' ')) { const t = l ? l + ' ' + p : p; if (largura(g, t, tam, peso) > w && l) { out.push(l); l = p; } else l = t; }
+  if (l) out.push(l);
+  return out;
+}
+
 class Jogo {
   constructor() {
     this.estado = DIARIA.situacao().status === 'pegar' ? 'DIARIA' : 'MENU'; this.pausado = false; this.timer = 0; this.quadro = 0;   // abre a recompensa do dia, se houver
@@ -909,11 +918,11 @@ class Jogo {
     this.resumo = []; this.faseRecorde = '1'; this.venceu = false; this.chefe = null; this.chefeMorrendo = 0;
     this.creditosRun = 0; this.cristaisRun = 0; this.ganhoFinal = null; this.tutorial = null; this.estatEspeciais = 0;
   }
-  emPartida() { return ['INTRO_FASE', 'JOGANDO', 'ALERTA_CHEFE', 'CHEFE', 'FASE_CONCLUIDA', 'MORRENDO'].includes(this.estado); }
+  emPartida() { return ['INTRO_FASE', 'JOGANDO', 'ALERTA_CHEFE', 'CHEFE', 'FASE_CONCLUIDA', 'MORRENDO', 'CONTINUAR'].includes(this.estado); }
   trocar(e) {
     this.estado = e; this.timer = 0; Input.apertou.clear();
     if (!this.emPartida()) this.fundo.hiper = 0;
-    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES', 'DIARIA'].includes(e)) Som.tocarMusica('musica_menu');
+    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES', 'DIARIA', 'HIST'].includes(e)) Som.tocarMusica('musica_menu');
   }
   pausar() { if (this.estado !== 'MORRENDO') { this.pausado = true; this.opcaoPausa = 0; Input.soltarTudo(); } }
 
@@ -936,6 +945,9 @@ class Jogo {
         if (this.timer > 40) { if (Input.ap('KeyR')) this.novaPartida(this.player.tipo, this.nodoInicio); else if (Input.ap('Enter')) this.trocar('HANGAR'); else if (Input.ap('Escape')) this.trocar('MENU'); }
         break;
       case 'VITORIA': this.atualizarVitoria(); break;
+      case 'CENA': this.atualizarCena(); break;
+      case 'HIST': this.fundo.update(); this.efeitos.update(); this.teclasHist(); break;
+      case 'CONTINUAR': this.fundo.update(); this.efeitos.update(); if (Input.ap('Enter')) this.continuar(); else if (Input.ap('Escape')) this.finalizarPartida(); break;
       default: this.atualizarPartida();
     }
   }
@@ -945,6 +957,7 @@ class Jogo {
     if (Input.ap('ArrowDown', 'KeyS')) { this.opcaoMenu = (this.opcaoMenu + 1) % 4; Som.tocar('menu'); }
     if (Input.ap('Enter', 'Space')) { Som.tocar('menu'); this.acaoMenu(this.opcaoMenu); }
     if (Input.ap('KeyG')) this.trocar('DIARIA');
+    if (Input.ap('KeyH')) this.abrirHist();
   }
   teclasDiaria() {
     const pode = DIARIA.situacao().status === 'pegar';
@@ -978,7 +991,7 @@ class Jogo {
     if (Input.ap('Escape', 'Backspace')) this.trocar('HANGAR');
     if (Input.ap('Enter', 'Space') && Dados.liberada(this.noMapa)) this.iniciarDoMapa(this.noMapa);
   }
-  iniciarDoMapa(n, chefe = false) { telaCheia(); this.novaPartida(this.naveEscolhida || this.player.tipo, n, chefe); }
+  iniciarDoMapa(n, chefe = false) { telaCheia(); const ir = () => this.novaPartida(this.naveEscolhida || this.player.tipo, n, chefe); if (chefe) ir(); else this.comCena(n, 'a', ir); }
   atualizarPausa() {
     if (Input.ap('ArrowUp', 'KeyW')) this.opcaoPausa = (this.opcaoPausa + 2) % 3;
     if (Input.ap('ArrowDown', 'KeyS')) this.opcaoPausa = (this.opcaoPausa + 1) % 3;
@@ -1003,7 +1016,7 @@ class Jogo {
     this.player = new Player(tipo); this.player.vidas += dm().vidas;
     this.tiros = []; this.inimigos = []; this.novos = []; this.itens = []; this.efeitos.limpar(); this.filaAvisos = []; this.avisoTimer = 0;
     Object.assign(this, { pontos: 0, combo: 0, comboTimer: 0, maiorCombo: 0, abatesTotal: 0, acertos: 0, ciclo: Math.floor((nodo - 1) / 5) + 1, faseIdx: (nodo - 1) % 5, venceu: false, nodoInicio: nodo, irParaChefe: chefe, podeChefe: false,
-      posRecorde: -1, pausado: false, faseRecorde: '1', creditosRun: 0, cristaisRun: 0, ganhoFinal: null, estatEspeciais: 0 });
+      posRecorde: -1, pausado: false, faseRecorde: '1', creditosRun: 0, cristaisRun: 0, ganhoFinal: null, estatEspeciais: 0, continuou: false });
     this.tutorial = (Dados.prog.tutorial || nodo > 1 || chefe) ? null : { passo: 0, t: 0 };
     this.lento = 0; Som.velocidadeMusica(1);
     this.iniciarFase();
@@ -1053,11 +1066,13 @@ class Jogo {
       case 'FASE_CONCLUIDA':
         if (t > 300 || (t > 60 && (Input.ap('Enter') || this.toqueContinuar))) {
           this.toqueContinuar = false;
-          if (this.faseIdx === FASES.length - 1 && this.ciclo === 1 && !this.venceu) { this.venceu = true; this.itens = []; this.tiros = []; this.trocar('VITORIA'); }
-          else this.avancarFase();
+          this.comCena(this.nodoAtual(), 'd', () => {
+            if (this.faseIdx === FASES.length - 1 && this.ciclo === 1 && !this.venceu) { this.venceu = true; this.itens = []; this.tiros = []; this.trocar('VITORIA'); }
+            else this.avancarFase();
+          });
         }
         break;
-      case 'MORRENDO': if (t > 150) this.finalizarPartida(); break;
+      case 'MORRENDO': if (t > 150) { if (this.podeContinuar()) this.trocar('CONTINUAR'); else this.finalizarPartida(); } break;
     }
     if (this.lento > 0 && --this.lento === 0) { Som.velocidadeMusica(1); this.aviso('Velocidade normal', [180, 190, 255]); }
     const inimigosAndam = !(this.lento > 0) || this.quadro % 2 === 0;
@@ -1100,7 +1115,7 @@ class Jogo {
   avancarFase() {
     if (++this.faseIdx >= FASES.length) { this.faseIdx = 0; this.ciclo++; this.aviso(`CICLO ${this.ciclo} — OS INIMIGOS ESTÃO MAIS FORTES!`, [255, 160, 80]); }
     this.tiros = this.tiros.filter(t => !t.inimigo);
-    this.iniciarFase();
+    this.comCena(this.nodoAtual(), 'a', () => this.iniciarFase());
   }
   finalizarPartida() {
     if (this.faseRecorde !== 'Venceu!') this.faseRecorde = this.ciclo === 1 ? String(this.fase.n) : `${this.ciclo}-${this.fase.n}`;
@@ -1286,10 +1301,11 @@ class Jogo {
   danificarChefe(d) { this.player.ganharEnergia(d * 0.25); if (this.chefe.danificar(d)) this.derrotarChefe(); }
   mult() { return 1 + Math.min(4, Math.floor(this.combo / 10)); }
   matar(i) {
-    i.vivo = false; this.abatesTotal++;
+    i.vivo = false; this.abatesTotal++; this.ev('abates');
     if (i.tipo.id !== 'FRAGMENTO' && i.tipo.id !== 'ENXAME' && this.estado === 'JOGANDO') this.abatesFase++;
     if (i.tipo.id === 'ENXAME' && this.estado === 'JOGANDO' && Math.random() < 0.34) this.abatesFase++;
     this.combo++; this.comboTimer = 150; this.maiorCombo = Math.max(this.maiorCombo, this.combo); this.maxComboFase = Math.max(this.maxComboFase, this.combo);
+    if (this.combo >= 5) this.ev('combo', this.combo, true);
     if (this.combo % 10 === 0) this.aviso(`COMBO ${this.combo}!  x${this.mult()}`, [255, 220, 90]);
     const ganho = i.tipo.pontos * this.mult() * this.ciclo;
     this.pontos += ganho;
@@ -1311,6 +1327,7 @@ class Jogo {
   }
   derrotarChefe() {
     const c = this.chefe, bonus = 5000 * this.fase.n * this.ciclo;
+    this.ev('chefes');
     this.pontos += bonus;
     this.efeitos.texto(c.x, c.y - c.h / 2, '+' + fmt(bonus), [255, 220, 90], 26);
     for (const t of this.tiros) if (t.inimigo) t.vivo = false;
@@ -1337,6 +1354,8 @@ class Jogo {
     else this.resumo.push(['Desafio: ' + d.descricao, 'falhou']);
     this.pontos += bv;
     this.resumo.push([`Vidas restantes (${this.player.vidas})`, '+' + fmt(bv)], ['Estrelas' + (novoRec ? ' (novo!)' : ''), '★'.repeat(est) + '☆'.repeat(3 - est)], ['Coletado até agora', `¢ ${this.creditosRun} · 💎 ${this.cristaisRun}`]);
+    this.ev('fases'); if (!this.danoNaFase) this.ev('semdano');
+    Dados.salvar();
     this.trocar('FASE_CONCLUIDA');
   }
   verificarDesafio() {
@@ -1358,13 +1377,13 @@ class Jogo {
     p.vidas--; p.arma = Math.max(1, p.arma - 1); p.invencivel = 150; this.danoNaFase = true; this.bordaDano = 40;
     if (this.fase.desafio.id === 'SEM_DANO') this.falharDesafio();
     this.combo = 0; this.tremer(18); Som.tocar('dano'); vibrar(120); this.efeitos.explosao(p.x, p.y, 40);
-    if (p.vidas <= 0) { p.vivo = false; this.efeitos.explosao(p.x, p.y, 150); this.flash = 15; this.tremer(30); Som.tocar('bomba'); vibrar([100, 50, 250]); this.trocar('MORRENDO'); }
+    if (p.vidas <= 0) { p.vivo = false; this.efeitos.explosao(p.x, p.y, 150); this.flash = 15; this.tremer(30); Som.tocar('bomba'); vibrar([100, 50, 250]); this.estadoAntes = this.estado; this.trocar('MORRENDO'); }
   }
   coletar(u) {
     const p = this.player;
-    if (u.tipo === MOEDA) { this.creditosRun += u.valor; Som.tocar('moeda'); return; }
+    if (u.tipo === MOEDA) { this.creditosRun += u.valor; this.ev('moedas', u.valor); Som.tocar('moeda'); return; }
     if (u.tipo === CRISTAL) { this.cristaisRun += u.valor; Som.tocar('powerup'); this.efeitos.texto(p.x, p.y - 32, '+1 💎', CRISTAL.cor, 16); return; }
-    const t = u.tipo; Som.tocar('powerup'); this.efeitos.fx('coleta', p.x, p.y, 0.9);
+    const t = u.tipo; this.ev('itens'); Som.tocar('powerup'); this.efeitos.fx('coleta', p.x, p.y, 0.9);
     let txt = t.nome;
     switch (t.id) {
       case 'ARMA': if (p.arma < 5) p.arma++; else { this.pontos += 1000; txt = 'ARMA MÁXIMA +1000'; } break;
@@ -1387,7 +1406,7 @@ class Jogo {
     this.efeitos.texto(p.x, p.y - 32, txt, t.cor, 15); this.efeitos.anel(p.x, p.y, t.cor, 50);
   }
   detonarBomba() {
-    this.bombaNaFase = true;
+    this.bombaNaFase = true; this.ev('bomba');
     if (this.fase.desafio.id === 'SEM_BOMBA' && !this.tutorial) this.falharDesafio();
     Som.tocar('bomba'); this.flash = 20; this.tremer(25); vibrar(150);
     this.efeitos.anel(this.player.x, this.player.y, [255, 255, 255], 900); this.efeitos.fx('plasma', this.player.x + 160, this.player.y, 3.4);
@@ -1426,6 +1445,8 @@ class Jogo {
       case 'COMO_JOGAR': this.telaComoJogar(g); break;
       case 'RECORDES': this.telaRecordes(g); break;
       case 'DIARIA': this.telaDiaria(g); this.efeitos.desenhar(g); break;
+      case 'CENA': this.telaCena(g); break;
+      case 'HIST': this.telaHist(g); this.efeitos.desenhar(g); break;
       case 'NOME': this.efeitos.desenhar(g); break;
       case 'GAME_OVER': this.efeitos.desenhar(g); this.telaGameOver(g); break;
       default: this.desenharPartida(g);
@@ -1460,6 +1481,7 @@ class Jogo {
     if (this.estado === 'FASE_CONCLUIDA') this.telaFaseConcluida(g);
     if (this.estado === 'VITORIA') this.telaVitoria(g);
     if (this.tutorial && this.estado === 'JOGANDO') this.telaTutorial(g);
+    if (this.estado === 'CONTINUAR') this.telaContinuar(g);
     if (this.pausado) this.telaPausa(g);
   }
 
@@ -1644,6 +1666,8 @@ class Jogo {
     if (Dados.recordes.length) { const r = Dados.recordes[0]; texto(g, `RECORDE: ${r.nome} — ${fmt(r.pontos)}`, W / 2, 490, 18, '#ffaa50', 'center'); }
     const diaria = DIARIA.situacao().status === 'pegar';
     botao(g, diaria ? '🎁 Diária !' : '🎁 Diária', 100, H - 86, 170, 56, () => this.trocar('DIARIA'), { tam: 19, cor: diaria ? AMARELO : undefined });
+    const pend = Hist.pendentes();
+    botao(g, pend ? `📖 Diário · ${pend}` : '📖 Diário', W - 110, H - 104, 190, 52, () => this.abrirHist(), { tam: 19, cor: pend ? AMARELO : undefined });
     if (!usouToque) texto(g, '↑ ↓ escolher · ENTER confirmar · M som', W / 2, 516, 15, CINZA, 'center', true, 600);
     texto(g, 'v' + VERSAO, 14, H - 12, 15, '#787d96', 'left', true, 600);
   }
@@ -1751,6 +1775,129 @@ class Jogo {
     linha(5, 'Efeitos visuais', Config.visual === 'leve' ? 'Leve' : 'Completo', alternarVis, alternarVis);
     botao(g, '🎓 Rever tutorial na próxima partida', W / 2, 440, 420, 48, () => { Dados.prog.tutorial = false; Dados.salvar(); this.aviso('O tutorial vai aparecer na próxima partida', [120, 255, 160]); }, { tam: 17 });
     botao(g, '← Voltar', W / 2, H - 34, 200, 52, () => this.trocar('MENU'), { tam: 19 });
+  }
+
+  // ---------------------------------------------------------- história, diário e missões (versão 3.5)
+  ev(chave, n = 1, max = false) { for (const t of Hist.evento(chave, n, max)) this.aviso('MISSÃO CUMPRIDA: ' + t, [120, 255, 160]); }
+  nodoAtual() { return (this.ciclo - 1) * 5 + this.faseIdx + 1; }
+  /** Mostra a cena da fase (t = 'a' antes, 'd' depois do chefe) só na primeira vez; depois segue com fn. */
+  comCena(nodo, t, fn) {
+    const l = Hist.cena(nodo, t);
+    if (!l || Hist.vista(nodo, t)) return fn();
+    this.cena = { nodo, t, l, i: 0, fim: fn }; this.trocar('CENA');
+  }
+  atualizarCena() {
+    this.fundo.update();
+    const c = this.cena;
+    if (!c) return this.trocar('MENU');
+    if (Input.ap('Escape')) return this.fimCena();
+    if (Input.ap('Enter', 'Space') || this.toqueCena) {
+      this.toqueCena = false;
+      if (Math.floor(this.timer / 2) < c.l[c.i][2].length) this.timer = c.l[c.i][2].length * 2 + 2;
+      else if (++c.i >= c.l.length) this.fimCena();
+      else this.timer = 0;
+    }
+  }
+  fimCena() { const c = this.cena; this.cena = null; this.toqueCena = false; if (!c) return; Hist.marcar(c.nodo, c.t); c.fim(); }
+  podeContinuar() { return !this.continuou && !this.tutorial && Dados.prog.cristais >= Hist.CUSTO_CONTINUAR; }
+  continuar() {
+    if (!Dados.pagar(0, Hist.CUSTO_CONTINUAR)) return;
+    const p = this.player; this.continuou = true;
+    p.vivo = true; p.vidas = Math.min(3, p.at.vidas); p.invencivel = 240; p.escudo = true;
+    this.tiros = this.tiros.filter(t => !t.inimigo);
+    this.efeitos.anel(p.x, p.y, [120, 255, 200], 90); this.efeitos.fx('teleporte', p.x, p.y + 20, 0.9); Som.tocar('powerup'); vibrar([40, 40, 80]);
+    this.trocar(this.estadoAntes || 'JOGANDO');
+  }
+  abrirHist() {
+    const n = Hist.estrelas(), m = Hist.missoes().some(x => !x.pego && x.prog >= x.meta);
+    this.aba = Hist.cartaNova() ? 0 : m ? 2 : 1; this.pag = Math.max(1, Math.min(DIARIO.length, n));
+    this.trocar('HIST');
+  }
+  teclasHist() {
+    if (Input.ap('Escape', 'Backspace')) this.trocar('MENU');
+    if (Input.ap('ArrowLeft', 'KeyA')) this.aba = (this.aba + 3) % 4;
+    if (Input.ap('ArrowRight', 'KeyD')) this.aba = (this.aba + 1) % 4;
+    if (this.aba === 1 && Input.ap('ArrowUp', 'KeyW')) this.pag = Math.max(1, this.pag - 1);
+    if (this.aba === 1 && Input.ap('ArrowDown', 'KeyS')) this.pag = Math.min(DIARIO.length, this.pag + 1);
+  }
+  telaCena(g) {
+    const c = this.cena;
+    if (!c) return;
+    g.fillStyle = 'rgba(4,6,18,.5)'; g.fillRect(0, 0, W, H);
+    const [id, ex, txt] = c.l[c.i], el = ELENCO[id];
+    botoes.push({ x: 0, y: 0, w: W, h: H, acao: () => { this.toqueCena = true; } });
+    const bx = 30, bw = W - 60, by = H - 172, bh = 150, tam = 270;
+    if (el) retrato(g, id, ex, el.lado ? W - tam - 36 : 36, by - tam + 24, tam);
+    painel(g, bx, by, bw, bh);
+    texto(g, el ? el.n : 'Narrador', bx + 26, by + 36, 22, el ? el.cor : CINZA);
+    const linhas = linhasQuebradas(g, txt, bw - 60, 22);
+    let resta = Math.floor(this.timer / 2);
+    linhas.forEach((l, i) => { const k = Math.max(0, Math.min(l.length, resta)); resta -= l.length + 1; if (k > 0) texto(g, l.slice(0, k), bx + 26, by + 74 + i * 30, 22, el ? '#fff' : '#cfd6ff', 'left', true, 600); });
+    if (Math.floor(this.timer / 2) >= txt.length && pisca(this.quadro, 24)) texto(g, '▶', bx + bw - 28, by + bh - 18, 22, AMARELO, 'right');
+    texto(g, `${c.i + 1}/${c.l.length}`, bx + bw - 30, by + 30, 14, CINZA, 'right', true, 600);
+    botao(g, 'Pular ⏭', W - 90, 36, 150, 44, () => this.fimCena(), { tam: 16 });
+  }
+  telaContinuar(g) {
+    g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(0, 0, W, H);
+    const w = 540, h = 270, x = W / 2 - w / 2, y = 120;
+    painel(g, x, y, w, h);
+    texto(g, 'SUA NAVE FOI DESTRUÍDA', W / 2, y + 52, 30, '#ff6a5a', 'center');
+    texto(g, `Continuar de onde parou, com ${Math.min(3, this.player.at.vidas)} vidas e escudo?`, W / 2, y + 92, 17, '#fff', 'center', true, 600);
+    texto(g, `Você tem 💎 ${Dados.prog.cristais}`, W / 2, y + 122, 17, ROSA, 'center', true, 700);
+    botao(g, `💎 ${Hist.CUSTO_CONTINUAR} · Continuar`, W / 2, y + 170, 420, 56, () => this.continuar(), { tam: 23, cor: '#fff', fundo: 'rgba(40,170,90,.55)', borda: '#6dff9e' });
+    botao(g, 'Desistir', W / 2, y + 230, 200, 44, () => this.finalizarPartida(), { tam: 18 });
+  }
+  telaHist(g) {
+    texto(g, 'DIÁRIO DE BORDO', W / 2, 40, 30, '#fff', 'center');
+    moedas(g, W - 16, 32, Dados.prog.creditos, Dados.prog.cristais, 18, 'right');
+    const novo = [Hist.cartaNova(), false, Hist.missoes().some(m => !m.pego && m.prog >= m.meta), Hist.conquistas().some(c => !c.pego && c.atual >= c.meta)];
+    ['✉ Carta', '📖 Diário', '🎯 Missões', '🏆 Conquistas'].forEach((s, i) =>
+      botao(g, s + (novo[i] ? ' !' : ''), W / 2 + (i - 1.5) * 190, 84, 180, 44, () => { this.aba = i; }, { sel: this.aba === i, tam: 18, cor: this.aba === i ? AMARELO : novo[i] ? AMARELO : '#fff' }));
+    const px = 40, py = 118, pw = W - 80, ph = 340;
+    painel(g, px, py, pw, ph);
+    if (this.aba === 0) {
+      const c = Hist.abrirCarta();
+      retrato(g, 'lirrin', 1, px + 24, py + 40, 200);
+      texto(g, `Carta de Lirrin · nº ${c.n}`, px + 250, py + 52, 24, AMARELO);
+      quebrar(g, c.texto, px + 250, py + 100, pw - 290, 22, '#fff');
+      texto(g, 'Uma carta nova chega por dia.', px + 250, py + ph - 24, 15, CINZA, 'left', true, 600);
+    } else if (this.aba === 1) {
+      const n = Hist.estrelas(), ok = this.pag <= n, fase = Math.ceil(this.pag / 3);
+      texto(g, `Página ${this.pag} de ${DIARIO.length} · ${FASES_DIARIO[fase - 1]}`, px + 30, py + 44, 22, AMARELO);
+      texto(g, `★ ${n}/${DIARIO.length}`, px + pw - 30, py + 44, 20, AMARELO, 'right');
+      if (ok) quebrar(g, DIARIO[this.pag - 1], px + 30, py + 104, pw - 60, 24, '#fff');
+      else quebrar(g, `🔒 Ganhe mais estrelas no mapa para liberar esta página (${n}/${this.pag}).`, px + 30, py + 104, pw - 60, 22, CINZA);
+      botao(g, '◀', px + 70, py + ph - 44, 100, 52, () => { this.pag = Math.max(1, this.pag - 1); }, { tam: 24, desligado: this.pag <= 1 });
+      botao(g, '▶', px + 190, py + ph - 44, 100, 52, () => { this.pag = Math.min(DIARIO.length, this.pag + 1); }, { tam: 24, desligado: this.pag >= DIARIO.length });
+      if (Hist.vista(fase, 'a')) botao(g, '▶ Rever a cena desta fase', px + pw - 190, py + ph - 44, 330, 52, () => { this.cena = { nodo: fase, t: 'a', l: Hist.cena(fase, 'a'), i: 0, fim: () => this.trocar('HIST') }; this.trocar('CENA'); }, { tam: 18 });
+    } else if (this.aba === 2) {
+      Hist.missoes().forEach((m, i) => {
+        const y = py + 20 + i * 104, pct = m.prog / m.meta, pronto = m.prog >= m.meta, rec = m.c ? `¢ ${m.c}` : `💎 ${m.d}`;
+        caixa(g, px + 20, y, pw - 40, 92, 12, 'rgba(10,16,40,.7)', m.pego ? 'rgba(120,255,150,.4)' : 'rgba(120,150,255,.3)');
+        texto(g, m.texto, px + 40, y + 36, 22, m.pego ? '#78ff96' : '#fff');
+        barra(g, px + 40, y + 52, pw - 330, 18, pct, pronto ? '#50d878' : '#5a82ff');
+        texto(g, `${Math.min(m.prog, m.meta)}/${m.meta}`, px + 50 + pw - 330, y + 68, 16, CINZA, 'left', true, 700);
+        botao(g, m.pego ? '✔ Pego' : `Pegar ${rec}`, px + pw - 130, y + 46, 190, 52, () => {
+          const r = Hist.pegarMissao(i);
+          if (r) { Som.tocar('compra'); vibrar([30, 30, 60]); this.efeitos.texto(W / 2, 300, `+${r.c ? '¢' + r.c : ''}${r.d ? ' 💎' + r.d : ''}`, [255, 214, 80], 30); }
+        }, { tam: 18, desligado: m.pego || !pronto, cor: pronto && !m.pego ? AMARELO : undefined });
+      });
+      texto(g, 'As missões mudam todo dia.', W / 2, py + ph - 8, 14, CINZA, 'center', true, 600);
+    } else {
+      const cw = (pw - 60) / 2;
+      Hist.conquistas().forEach((c, i) => {
+        const x = px + 20 + (i % 2) * (cw + 20), y = py + 16 + Math.floor(i / 2) * 80, pronto = c.atual >= c.meta, rec = c.c ? `¢${c.c}` : `💎${c.d}`;
+        caixa(g, x, y, cw, 70, 12, 'rgba(10,16,40,.7)', c.pego ? 'rgba(120,255,150,.4)' : pronto ? AMARELO : 'rgba(120,150,255,.3)');
+        texto(g, c.nome, x + 16, y + 26, 18, c.pego ? '#78ff96' : '#fff');
+        texto(g, c.texto, x + 16, y + 46, 13, CINZA, 'left', true, 600);
+        barra(g, x + 16, y + 54, cw - 150, 8, c.atual / c.meta, pronto ? '#50d878' : '#5a82ff');
+        botao(g, c.pego ? '✔' : rec, x + cw - 56, y + 35, 90, 44, () => {
+          const r = Hist.pegarConquista(c.id);
+          if (r) { Som.tocar('compra'); vibrar([30, 30, 60]); this.efeitos.texto(W / 2, 300, `+${r.c ? '¢' + r.c : ''}${r.d ? ' 💎' + r.d : ''}`, [255, 214, 80], 30); }
+        }, { tam: 16, desligado: c.pego || !pronto, cor: pronto && !c.pego ? AMARELO : undefined });
+      });
+    }
+    botao(g, '← Menu', 100, H - 32, 160, 46, () => this.trocar('MENU'), { tam: 19 });
   }
 
   telaDiaria(g) {
