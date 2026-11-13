@@ -326,6 +326,14 @@ const Arte = (() => {
       p.ret(8, 17, 50, 3, '#6a4a10'); p.ret(0, 21, 10, 2, '#ff5050'); p.elipse(24, 16, 6, 4, nucleoForma(f));
       for (let x = 32; x < 58; x += 6) p.ret(x, 12, 3, 2, '#fff3a0'); racha(p, 64, 46, f);
     } },
+    ULTHAR: { w: 70, h: 50, desenha(p, f) {   // Ulthar-Vey, a Fome: um olho no meio de uma massa de vazio com tentáculos
+      p.elipse(40, 25, 29, 15, '#2a1240'); p.elipse(44, 22, 20, 9, '#3e1a5e');
+      for (let x = 22; x < 64; x += 7) p.poli([[x, 14], [x + 3, 1 + (x % 3)], [x + 6, 13]], '#5a2a80');
+      p.poli([[14, 22], [2, 12], [8, 19], [0, 24]], '#4a1e6a'); p.poli([[18, 16], [8, 4], [14, 13]], '#4a1e6a');
+      for (let x = 36; x < 64; x += 9) p.ret(x, 18, 6, 1, '#ffcf5a');
+      p.elipse(28, 25, 10, 7, '#efe2ff'); p.elipse(27, 25, 5, 6, nucleoForma(f)); p.elipse(26, 25, 1.6, 4, '#0a0012');
+      racha(p, 70, 50, f);
+    } },
   };
   function chefe(id, forma = 1) {
     return memo(`chefe:${id}:${forma}`, () => { const a = CHEFES_ARTE[id]; return pixelar(a.w, a.h, p => a.desenha(p, forma), { escala: 3 }); });

@@ -93,6 +93,16 @@ const Dados = {
       missoes: Array.isArray(h.missoes) ? h.missoes.filter(m => m && typeof m.id === 'string').map(m => ({ id: m.id, prog: num(m.prog), pego: !!m.pego })) : [],
       stat: { abates: num((h.stat || {}).abates), chefes: num((h.stat || {}).chefes), fases: num((h.stat || {}).fases), moedas: num((h.stat || {}).moedas) },
       conq: h.conq && typeof h.conq === 'object' ? h.conq : {},
+      escolha: h.escolha === 'destruir' || h.escolha === 'libertar' ? h.escolha : '',   // versão 3.6: escolha no fim do Setor 2
+      finais: h.finais && typeof h.finais === 'object' ? h.finais : {},
+    };
+    // câmaras (versão 3.6): chaves, câmaras concluídas, itens (id -> raridade 1..4) e o que está equipado
+    const c = p.cam && typeof p.cam === 'object' ? p.cam : {}, eq = c.equip && typeof c.equip === 'object' ? c.equip : {};
+    p.cam = {
+      chaves: Number.isInteger(c.chaves) ? Math.max(0, Math.min(5, c.chaves)) : 1,
+      feitas: c.feitas && typeof c.feitas === 'object' ? c.feitas : {},
+      itens: Object.fromEntries(Object.entries(c.itens && typeof c.itens === 'object' ? c.itens : {}).filter(([id, nv]) => typeof ITENS_CAM !== 'undefined' ? ITENS_CAM[id] && Number.isInteger(nv) && nv >= 1 && nv <= 4 : Number.isInteger(nv))),
+      equip: { reliquia: typeof eq.reliquia === 'string' ? eq.reliquia : '', selo: typeof eq.selo === 'string' ? eq.selo : '', poder: typeof eq.poder === 'string' ? eq.poder : '' },
     };
     this.salvar();
   },

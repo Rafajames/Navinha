@@ -14,6 +14,15 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## 🧪 Versão 3.6.0 (pronta no branch `v3.6-historia`, ainda não publicada)
+
+**Mapa com 15 fases (pacote 4)** — Setor 3 · Reacender (fases 11 a 15) com nomes da história em todo o mapa; nomes novos dos chefes (Vharaxis, Kraxul, Syrelith, Nox-Aranth, Ul-Zarkoth e ecos); chefe final novo **Ulthar-Vey, a Fome** (arte própria)
+**História completa** — cenas das fases 11 a 15; escolha no fim do Setor 2 (destruir o Cerne ou libertar a memória de Eskarion), que muda falas; 3 finais (Chama, Memória e o secreto com as 45 estrelas); cena-gancho para a continuação depois de qualquer final; diário com 45 páginas
+**Câmaras (pacote 5)** — 9 câmaras liberadas pelo mapa; entrada com Chave de Câmara (chefes dão chave, máximo 5, ou 💎2); 5 salas com porta segura ou arriscada; Guardião na sala 5; Sala do Tesouro com 3 baús (cor = raridade, escolhe 1)
+**Equipamento** — 4 relíquias, 4 selos e 5 poderes ativos (botão ✦ / tecla V, com recarga), cada um em 4 raridades; item repetido vira moedas
+**Arte** — retrato da Syrelith com 4 expressões (feito a partir da imagem de referência)
+- Novas conquistas (45 estrelas, Céu aceso, câmaras) e missão do dia "Conclua 1 câmara"
+
 ## ✅ Versão 3.5.0 (entregue)
 
 **História "Crônicas do Cerne Umbralis" (pacotes 1 e 2)** — cenas com retratos e 4 expressões antes e depois do chefe das 10 fases (só na 1ª vez; botão Pular; dá para rever pelo Diário); carta nova da Lirrin a cada dia; diário de bordo com 30 páginas (1 por estrela); menu "📖 Diário" com bolinha de aviso
@@ -72,15 +81,8 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ## 📋 Próximos pacotes (a escolher)
 
-### 4 · Mapa de 15 fases (história)
-- Setor 3 · Reacender (fases 11 a 15), cenas, escolhas e finais (dois principais e um secreto com as 45 estrelas), chefe Ulthar-Vey
-- Diário com 45 páginas
-
-### 5 · Câmaras (dungeons)
-- 9 câmaras de 5 salas com Guardião, baús, relíquias, selos e poderes ativos; Chaves de Câmara
-
-### 3 · Arte dos personagens
-- Retrato da Syrelith (Rainha Carmim); nomes novos dos chefes no jogo
+### 11 · Continuação: Crônicas do Cerne Umbralis II
+- O gancho já está no jogo: o sinal além do Véu e "a Fome estava fugindo de alguma coisa". Novo setor, novo vilão, novas câmaras
 
 ### 6 · Publicação na Google Play
 - Empacotar como app Android (TWA/AAB a partir do GitHub Pages)

@@ -9,9 +9,11 @@ const ELENCO = {
   tzalenka: { n: 'Madre Tzalenka', l: 6, cor: '#7ae07a', lado: 1 }, ilvane: { n: 'Ilvane', l: 7, cor: '#b48cff', lado: 1 },
   caldrus: { n: 'Capitão Caldrus', l: 8, cor: '#e8e8f0', lado: 1 }, eskarion: { n: 'Almirante Eskarion', l: 9, cor: '#ff6a5a', lado: 1 },
   zarkoth: { n: 'Soberano Ul-Zarkoth', l: 10, cor: '#ff4a3a', lado: 1 }, meridiel: { n: 'Dra. Meridiel', l: 11, cor: '#ff8aa0', lado: 1 },
+  syrelith: { n: 'Syrelith', l: 12, cor: '#ff3a6a', lado: 1 }, fome: { n: 'Ulthar-Vey', l: -1, cor: '#c08cff', lado: 1 },
 };
 
-// Chave = número da fase + 'a' (antes) ou 'd' (depois do chefe). Falas: [personagem, expressão, texto]; 'narr' = narrador.
+// Chave = número da fase + 'a' (antes) ou 'd' (depois do chefe). Falas: [personagem, expressão, texto, escolha?]; 'narr' = narrador.
+// escolha: 'D' (só se destruiu o Cerne) ou 'L' (só se libertou a memória de Eskarion).
 const CENAS = {
   '1a': [['narr', 0, 'Ano 9.214 da Era Lumínica. Faz quase cem anos que as estrelas morrem. Chamam isso de a Fome.'],
     ['seraphel', 0, 'Piloto Ysolvane, o Anel de Kessarin está infestado. Sua primeira missão: abrir caminho.'],
@@ -73,9 +75,68 @@ const CENAS = {
     ['dren', 2, 'Porque o que você chama de salvar destrói todo mundo!'],
     ['zarkoth', 3, 'Eu perdi duas pessoas. E juro que as trago de volta.']],
   '10d': [['zarkoth', 3, 'Você venceu hoje, garoto. Mas o Cerne não é o fim.'],
-    ['meridiel', 3, 'Dren, não é ele quem comanda a Fome. Tem algo mais antigo no fundo.'],
-    ['narr', 0, 'O Cerne se abre. Setor 3 · Reacender: em breve.']],
+    ['meridiel', 3, 'Dren, não é ele quem comanda a Fome. Tem algo mais antigo no fundo: Ulthar-Vey.'],
+    ['meridiel', 0, 'O Cerne guarda a memória da família dele. Destrua o Cerne e a Fome perde a âncora... mas tudo lá dentro se perde.'],
+    ['seraphel', 3, 'Ou liberte a memória de Eskarion. Ele volta a ser quem era, mas o Cerne fica aberto. A decisão é sua, piloto.']],
+  '11a': [['narr', 0, 'Setor 3 · Reacender. A colônia Oruvai está ficando escura.'],
+    ['lirrin', 1, 'DREN! Você veio mesmo! Eu sabia! Eu disse pro gato que você vinha!'],
+    ['dren', 3, 'Lirrin... a voz no Cerne era só um eco. Você está aqui. Você está bem.'],
+    ['lirrin', 2, 'Bem nada, a estrela da colônia está apagando! Vai lá e dá um jeito, piloto!']],
+  '11d': [['lirrin', 1, 'A luz voltou! Toma, leva a minha lanterna. Ela nunca apagou, nem quando tudo apagou.'],
+    ['dren', 1, 'Vou trazer de volta. Prometo.'],
+    ['eskarion', 3, 'Oruvai... eu morava na terceira rua. A casa ainda está lá?', 'L'],
+    ['seraphel', 3, 'A colônia que o Almirante perdeu. Ele daria tudo para ver isto.', 'D']],
+  '12a': [['gorvan', 1, 'Estaleiros de Pharsis! Foi aqui que eu aprendi a apertar parafuso. E a perder dedo.'],
+    ['ioleth', 1, 'Com as peças daqui montamos a Lança Reacender. Ela abre o Véu onde a Fome se esconde.'],
+    ['caldrus', 0, 'Eu conheço as rotas de guarda. Deixem que eu pague a minha dívida.']],
+  '12d': [['gorvan', 1, 'A Lança está pronta! Feia como eu, mas funciona como eu também!'],
+    ['zephrael', 1, 'Eu pilotei a escolta e não bati em nada. Anotem isso no diário de vocês.'],
+    ['caldrus', 3, 'Obrigado por me deixarem lutar ao lado de vocês. Eu não merecia.']],
+  '13a': [['ilvane', 0, 'O Mar de Cinzas de Ghelm. Minha casa. Aqui eu sumi pela primeira vez.'],
+    ['syrelith', 2, 'Vocês voltaram ao meu reino. Eu sou o que restou do Cerne em mim.'],
+    ['meridiel', 3, 'Syrelith ainda me prende, Dren. Se você vencer, talvez eu consiga sair.']],
+  '13d': [['syrelith', 3, 'Por que... eu sinto frio agora? Eu nunca senti nada.'],
+    ['meridiel', 1, 'Porque eu voltei. Obrigada, Dren. Sou só eu de novo: Meridiel Sarn.'],
+    ['ilvane', 1, 'E eu senti a minha mão inteira, pela primeira vez em anos.']],
+  '14a': [['seraphel', 0, 'O Véu Fendido. Do outro lado está Ulthar-Vey, a Fome.'],
+    ['eskarion', 0, 'Eu lutei ao lado da Fome por anos. Agora vou lutar contra ela. Ao seu lado, Seraphel.', 'L'],
+    ['seraphel', 1, 'Bem-vindo de volta, Almirante.', 'L'],
+    ['seraphel', 3, 'O Almirante se foi junto com o Cerne. Eu fico com o relógio dele. Vamos terminar isso por ele.', 'D'],
+    ['dren', 2, 'Último guardião. Depois dele, mais ninguém apaga estrela nenhuma.']],
+  '14d': [['narr', 0, 'O Véu se rasga. Do outro lado não há estrelas: só uma fome do tamanho do céu.'],
+    ['fome', 0, 'PEQUENA LUZ. EU COMI SÓIS MAIS ANTIGOS QUE O SEU NOME.'],
+    ['dren', 1, 'Então você nunca comeu nada que viesse com a lanterna da minha irmã.']],
+  '15a': [['fome', 0, 'VENHA. TODA LUZ TERMINA EM MIM.'],
+    ['tzalenka', 1, 'Os cristais de Mornhek estão cantando todos juntos, menino! Para você!'],
+    ['zephrael', 1, 'Vai lá, Dren. Eu fico com o segundo lugar... só desta vez.'],
+    ['dren', 2, 'Vigília de Asterra, comigo! Vamos reacender o céu!']],
+  '15d': [['fome', 0, 'ISSO... É... CALOR?'],
+    ['narr', 0, 'Ulthar-Vey se desfaz como cinza no vento. Uma a uma, as estrelas voltam a piscar.']],
+  'fimD': [['narr', 0, 'FINAL DA CHAMA'],
+    ['seraphel', 3, 'O Cerne se foi, e com ele as memórias do Almirante. Mas o céu está aceso.'],
+    ['lirrin', 1, 'Dren, contei as estrelas: são 4.000 e lá vai bolinha. Desisti de contar!'],
+    ['dren', 1, 'Então vamos contar juntos. Uma por noite.'],
+    ['narr', 0, 'Ganhe todas as estrelas do mapa para ver o final secreto.']],
+  'fimL': [['narr', 0, 'FINAL DA MEMÓRIA'],
+    ['eskarion', 3, 'Eu prendo o que restou da Fome dentro de mim. É o meu jeito de voltar para casa.'],
+    ['eskarion', 1, 'Diga à pequena Lirrin que a terceira rua de Oruvai tem a melhor vista do céu.'],
+    ['seraphel', 3, 'Descanse, Almirante. A Vigília vigia por você agora.'],
+    ['narr', 0, 'Ganhe todas as estrelas do mapa para ver o final secreto.']],
+  'fimS': [['narr', 0, 'FINAL SECRETO · REACENDER'],
+    ['lirrin', 1, 'A lanterna! Ela está brilhando sozinha, mais forte que tudo!'],
+    ['ioleth', 1, 'Ela guardou a luz de Oruvai por cem anos. É a fagulha que faltava para fechar a Fome de vez!'],
+    ['eskarion', 1, 'E sem ninguém precisar ficar para trás. Nem eu.'],
+    ['gorvan', 1, 'Festa no Hangar! Quem quebrar alguma coisa, conserta!'],
+    ['dren', 1, 'Fim da jornada? Que nada. É só o primeiro céu aceso.']],
+  // gancho para a continuação: aparece depois de qualquer final
+  'gancho': [['narr', 0, 'Semanas depois. Cidadela Irrynth, madrugada.'],
+    ['ilvane', 3, 'Dren, acorda. Eu ainda ouço o eco... e não é a voz de Ulthar-Vey.'],
+    ['ioleth', 0, 'Os sensores captaram um sinal vindo de além do Véu. Mesma assinatura do Cerne. Só que mil vezes maior.'],
+    ['ilvane', 3, 'A Fome não veio atrás das estrelas. Ela estava fugindo de alguma coisa.'],
+    ['dren', 2, 'Então a gente vai lá descobrir do quê.'],
+    ['narr', 0, 'Crônicas do Cerne Umbralis · continua...']],
 };
+
 
 const CARTAS = [
   'Oi, Dren! Hoje a luz da colônia piscou duas vezes. Eu contei. A tia diz que é normal, mas desenhei o piscar pra você.',
@@ -126,9 +187,31 @@ const DIARIO = [
   'Cheguei ao Coração do Cerne. O Soberano Ul-Zarkoth tem um relógio de bolso que não para de tiquetaquear.',
   'Cumpri o desafio no Coração. Percebi que ele aperta o relógio sempre que fala da filha.',
   'Sem dano no Coração do Cerne. Vitória de hoje, mas a Fome ainda tem um dono mais antigo. O Setor 3 me espera.',
+  'Oruvai. Abracei a Lirrin tão forte que a mochila dela fez barulho de adesivo descolando.',
+  'Desafio na colônia cumprido. A Lirrin cronometrou e disse que eu fui "bem mais ou menos rápido".',
+  'Sem dano em Oruvai. Ela me deu a lanterna. Prometi devolver acesa.',
+  'Pharsis cheira a solda e a saudade. O Gorvan chorou um pouquinho e culpou a fumaça.',
+  'Desafio feito nos estaleiros. A Ioleth batizou cada parafuso da Lança com um nome.',
+  'Sem dano em Pharsis. O Caldrus pegou o primeiro turno de guarda sem ninguém pedir.',
+  'Ghelm é um mar de cinza que sussurra. O Ilvane andava nele como quem anda em casa.',
+  'Cumpri o desafio no Mar de Cinzas. Ouvi a Syrelith chorar. Não sabia que rainhas choravam.',
+  'Sem dano em Ghelm. A Dra. Meridiel tomou o primeiro chá de verdade em anos. Disse que estava quente demais. Sorriu mesmo assim.',
+  'O Véu Fendido parece uma ferida no céu. Segurei a lanterna da Lirrin com força.',
+  'Desafio feito diante do Véu. A Seraphel não disse nada, só apertou o meu ombro.',
+  'Sem dano no Véu. Os amigos estão todos aqui. Acho que é isso que faz a gente ser corajoso.',
+  'Ulthar-Vey. Não tem rosto. Tem só fome. Eu tenho uma irmã, um mecânico, uma comandante e um rival chato. Ganhei.',
+  'Desafio cumprido contra a Fome. Uma estrela acendeu bem em cima da Cidadela.',
+  'Sem dano na última batalha. Fim do diário de bordo. Começo do resto da vida.',
 ];
-const FASES_DIARIO = ['Anel de Kessarin', 'Jazida de Mornhek', 'Nebulosa Ruvanti', 'Limiar de Nox', 'O Cerne Umbralis',
-  'Anel Partido', 'Jazida Eterna', 'Ruvanti Invertida', 'Limiar Ardente', 'Coração do Cerne'];
+const NOMES_FASE = ['Anel de Kessarin', 'Jazida de Mornhek', 'Nebulosa Ruvanti', 'Limiar de Nox', 'O Cerne Umbralis',
+  'Anel Partido', 'Jazida Eterna', 'Ruvanti Invertida', 'Limiar Ardente', 'Coração do Cerne',
+  'Colônia Oruvai', 'Estaleiros de Pharsis', 'Mar de Cinzas de Ghelm', 'O Véu Fendido', 'Ulthar-Vey'];
+const FASES_DIARIO = NOMES_FASE;
+const NOMES_CHEFE = ['Vharaxis, a Nave-Ninho', 'Kraxul, o Moedor de Mundos', 'Syrelith, a Rainha Carmim', 'Nox-Aranth, o Vigia do Limiar', 'Soberano Ul-Zarkoth',
+  'Eco de Vharaxis', 'Eco de Kraxul', 'Eco de Syrelith', 'Nox-Aranth Ardente', 'Ul-Zarkoth, Coração do Cerne',
+  'Ceifadora de Oruvai', 'Kraxul Forjado', 'Syrelith das Cinzas', 'Nox-Aranth, o Último Vigia', 'Ulthar-Vey, a Fome'];
+const NOMES_SETOR = ['SETOR 1 · A Queda das Luzes', 'SETOR 2 · Ecos', 'SETOR 3 · Reacender'];
+const N_FASES = 15;
 
 // missões do dia: chave = evento contado; max = guarda o maior valor em vez de somar
 const MISSOES = [
@@ -142,6 +225,7 @@ const MISSOES = [
   { id: 'combo20', texto: 'Chegue a um combo de 20', chave: 'combo', meta: 20, max: true, c: 200 },
   { id: 'itens5', texto: 'Colete 5 itens de ajuda', chave: 'itens', meta: 5, c: 150 },
   { id: 'semdano', texto: 'Conclua uma fase sem perder vida', chave: 'semdano', meta: 1, c: 0, d: 1 },
+  { id: 'camara1', texto: 'Conclua 1 câmara', chave: 'camara', meta: 1, c: 0, d: 1 },
 ];
 
 const CONQUISTAS = [
@@ -150,7 +234,11 @@ const CONQUISTAS = [
   { id: 'abates500', nome: 'Faxina espacial', texto: 'Destrua 500 inimigos', meta: 500, val: h => h.stat.abates, c: 500 },
   { id: 'est10', nome: 'Dez estrelas', texto: 'Ganhe 10 estrelas no mapa', meta: 10, val: () => Hist.estrelas(), d: 1 },
   { id: 'est20', nome: 'Vinte estrelas', texto: 'Ganhe 20 estrelas no mapa', meta: 20, val: () => Hist.estrelas(), d: 2 },
-  { id: 'est30', nome: 'Constelação completa', texto: 'Ganhe as 30 estrelas', meta: 30, val: () => Hist.estrelas(), d: 5 },
+  { id: 'est30', nome: 'Trinta estrelas', texto: 'Ganhe 30 estrelas no mapa', meta: 30, val: () => Hist.estrelas(), d: 3 },
+  { id: 'est45', nome: 'Constelação completa', texto: 'Ganhe as 45 estrelas', meta: 45, val: () => Hist.estrelas(), d: 6 },
+  { id: 'fim', nome: 'Céu aceso', texto: 'Derrote Ulthar-Vey', meta: 1, val: h => Object.keys(h.finais).length ? 1 : 0, d: 3 },
+  { id: 'cam1', nome: 'Explorador', texto: 'Conclua 1 câmara', meta: 1, val: () => Object.keys(Dados.prog.cam.feitas).length, c: 300 },
+  { id: 'cam9', nome: 'Senhor das Câmaras', texto: 'Conclua as 9 câmaras', meta: 9, val: () => Object.keys(Dados.prog.cam.feitas).length, d: 5 },
   { id: 'fases10', nome: 'Veterano', texto: 'Conclua 10 fases', meta: 10, val: h => h.stat.fases, c: 400 },
   { id: 'moedas2000', nome: 'Cofrinho cheio', texto: 'Colete 2000 moedas', meta: 2000, val: h => h.stat.moedas, d: 1 },
 ];
@@ -162,7 +250,7 @@ const Hist = {
   cena(nodo, t) { return CENAS[nodo + t] || null; },
   vista(nodo, t) { return !!this.h().cenas[nodo + t]; },
   marcar(nodo, t) { if (!this.h().cenas[nodo + t]) { this.h().cenas[nodo + t] = 1; Dados.salvar(); } },
-  estrelas() { let s = 0; for (let n = 1; n <= 10; n++) s += Dados.estrelas(n); return s; },
+  estrelas() { let s = 0; for (let n = 1; n <= N_FASES; n++) s += Dados.estrelas(n); return s; },
   // ---- carta diária da Lirrin
   cartaNova() { return this.h().cartaDia !== hojeLocal(); },
   abrirCarta() {
@@ -175,7 +263,7 @@ const Hist = {
     const h = this.h(), hoje = hojeLocal();
     if (h.missaoDia !== hoje || h.missoes.length !== 3) {
       let s = 7; for (const ch of hoje) s = (s * 31 + ch.charCodeAt(0)) >>> 0;
-      const pool = MISSOES.slice(), esc = [];
+      const pool = MISSOES.filter(m => m.id !== 'camara1' || this.liberadaCam(0)), esc = [];
       while (esc.length < 3) { s = (Math.imul(s, 1103515245) + 12345) >>> 0; esc.push(pool.splice(Math.floor(s / 65536) % pool.length, 1)[0]); }
       h.missaoDia = hoje; h.missoes = esc.map(m => ({ id: m.id, prog: 0, pego: false }));
       Dados.salvar();
@@ -215,3 +303,72 @@ const Hist = {
     return (this.cartaNova() ? 1 : 0) + this.missoes().filter(m => !m.pego && m.prog >= m.meta).length + this.conquistas().filter(c => !c.pego && c.atual >= c.meta).length;
   },
 };
+
+// ============================================================ Câmaras (dungeons)
+// k = fase usada (inimigos e chefe), ciclo = força; req = fase que precisa ter ao menos 1 estrela
+const CAMARAS = [
+  { nome: 'Ossuária de Ghelm', k: 0, ciclo: 1, req: 1, cor: '#c8c0b0' },
+  { nome: 'Coral de Mornhek', k: 1, ciclo: 1, req: 2, cor: '#7ae07a' },
+  { nome: 'Lentes de Ruvanti', k: 2, ciclo: 1, req: 3, cor: '#5ee8d0' },
+  { nome: 'Relicário de Orsa', k: 3, ciclo: 1, req: 5, cor: '#ffd650' },
+  { nome: 'Ferro Adormecido', k: 1, ciclo: 2, req: 7, cor: '#a0a8c0' },
+  { nome: 'Sinos de Vael', k: 4, ciclo: 2, req: 9, cor: '#6edcff' },
+  { nome: 'Maré Cinzenta', k: 2, ciclo: 2, req: 11, cor: '#9aa0b8' },
+  { nome: 'Vazio de Thuun', k: 3, ciclo: 3, req: 13, cor: '#b48cff' },
+  { nome: 'Última Brasa', k: 4, ciclo: 3, req: 15, cor: '#ff7a3a' },
+];
+const RARIDADES = [null, { n: 'Comum', cor: '#c8d0e0' }, { n: 'Rara', cor: '#5aa8ff' }, { n: 'Épica', cor: '#c070ff' }, { n: 'Lendária', cor: '#ffb02e' }];
+// tipo: reliquia / selo (passivos) ou poder (botão ✦ na partida). nv = raridade 1 a 4.
+const ITENS_CAM = {
+  coracao: { tipo: 'reliquia', n: 'Coração de Mornhek', ic: '❤', d: nv => `+${nv >= 3 ? 2 : 1} vida` },
+  lente: { tipo: 'reliquia', n: 'Lente de Ruvanti', ic: '🔍', d: nv => `atrai itens de ${60 * nv} px mais longe` },
+  relogio: { tipo: 'reliquia', n: 'Relógio Partido', ic: '⏱', d: nv => `começa com ${20 * nv}% de especial` },
+  veu: { tipo: 'reliquia', n: 'Véu de Ilvane', ic: '👻', d: nv => `+${(nv * 0.5).toFixed(1).replace('.', ',')} s invencível após dano` },
+  chama: { tipo: 'selo', n: 'Selo da Chama', ic: '🔥', d: nv => `+${8 * nv}% de dano` },
+  fortuna: { tipo: 'selo', n: 'Selo da Fortuna', ic: '¢', d: nv => `+${15 * nv}% de moedas` },
+  trovao: { tipo: 'selo', n: 'Selo do Trovão', ic: '💣', d: nv => `+${nv >= 3 ? 2 : 1} bomba` },
+  argenteo: { tipo: 'selo', n: 'Selo Argênteo', ic: '🛡', d: nv => nv >= 3 ? 'escudo no início e escudo que volta' : 'começa com escudo' },
+  salto: { tipo: 'poder', n: 'Salto Fendido', ic: '↯', d: nv => `teletransporta à frente, invencível por ${(0.5 + nv * 0.25).toFixed(2).replace('.', ',')} s` },
+  cortina: { tipo: 'poder', n: 'Cortina Argêntea', ic: '◎', d: nv => `bolha protetora por ${3 + nv} s` },
+  chuva: { tipo: 'poder', n: 'Chuva de Estilhaços', ic: '✶', d: nv => `${8 + nv * 4} estilhaços caem do céu` },
+  ancora: { tipo: 'poder', n: 'Âncora Gravítica', ic: '⚓', d: nv => `inimigos lentos por ${3 + nv} s` },
+  pulso: { tipo: 'poder', n: 'Pulso Sereno', ic: '✺', d: nv => `apaga os tiros inimigos e dá ${10 * nv}% de especial` },
+};
+const RECARGA_PODER = [0, 40, 34, 28, 22];   // segundos por raridade
+
+Object.assign(Hist, {
+  cam() { return Dados.prog.cam; },
+  liberadaCam(i) { return Dados.estrelas(CAMARAS[i].req) >= 1; },
+  ganharChave() { const c = this.cam(); if (c.chaves >= 5) return false; c.chaves++; Dados.salvar(); return true; },
+  usarChave() { const c = this.cam(); if (c.chaves < 1) return false; c.chaves--; Dados.salvar(); return true; },
+  comprarChave() { if (this.cam().chaves >= 5 || !Dados.pagar(0, 2)) return false; this.cam().chaves++; Dados.salvar(); return true; },
+  /** Sorteia a raridade de um baú; sorte = portas arriscadas escolhidas. */
+  raridade(sorte, minimo = 1) {
+    const r = Math.random() * 100, l = 2 + sorte * 3, e = 10 + sorte * 6, ra = 30 + sorte * 4;
+    return Math.max(minimo, r < l ? 4 : r < l + e ? 3 : r < l + e + ra ? 2 : 1);
+  },
+  /** Três baús: raridade e item (o jogador vê a raridade, não o item). */
+  baus(sorte, primeira) {
+    const ids = Object.keys(ITENS_CAM), out = [];
+    while (out.length < 3) { const id = ids[Math.floor(Math.random() * ids.length)]; if (!out.some(b => b.id === id)) out.push({ id, nv: this.raridade(sorte, primeira && !out.length ? 2 : 1) }); }
+    return out;
+  },
+  /** Guarda o item; se já tiver igual ou melhor, vira moedas. */
+  receber(b) {
+    const c = this.cam(), atual = c.itens[b.id] || 0;
+    if (b.nv > atual) {
+      c.itens[b.id] = b.nv;
+      const t = ITENS_CAM[b.id].tipo; if (!c.equip[t]) c.equip[t] = b.id;   // equipa sozinho se o espaço estava vazio
+      Dados.salvar(); return { novo: true, moedas: 0 };
+    }
+    const moedas = 80 * b.nv; Dados.ganhar(moedas, 0); return { novo: false, moedas };
+  },
+  equipar(id) { const c = this.cam(), t = ITENS_CAM[id].tipo; c.equip[t] = c.equip[t] === id ? '' : id; Dados.salvar(); },
+  /** Equipamento em uso: { reliquia: {id, nv}, selo: {...}, poder: {...} } (só o que estiver equipado e possuído). */
+  equipado() {
+    const c = this.cam(), o = {};
+    for (const t of ['reliquia', 'selo', 'poder']) { const id = c.equip[t]; if (id && c.itens[id]) o[t] = { id, nv: c.itens[id] }; }
+    return o;
+  },
+  concluirCamara(i) { const c = this.cam(), primeira = !c.feitas[i]; c.feitas[i] = (c.feitas[i] || 0) + 1; Dados.salvar(); return primeira; },
+});
