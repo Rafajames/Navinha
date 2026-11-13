@@ -372,3 +372,29 @@ Object.assign(Hist, {
   },
   concluirCamara(i) { const c = this.cam(), primeira = !c.feitas[i]; c.feitas[i] = (c.feitas[i] || 0) + 1; Dados.salvar(); return primeira; },
 });
+
+// pilotos de cada nave na história (aparecem no "Ver de perto" do Hangar)
+const PILOTO_NAVE = {
+  FALCAO: ['dren', 1, 'Minha primeira nave da Vigília. O Gorvan jura que ela tem ciúme das outras.'],
+  COMETA: ['zephrael', 1, 'A mais rápida do Hangar. Eu sei porque eu sou o mais rápido do Hangar.'],
+  TITA: ['tzalenka', 1, 'Blindada como as paredes de Mornhek. Aguenta pancada e ainda canta.'],
+  VESPA: ['gorvan', 1, 'Montei cada drone com estes três dedos. Não me faça montar de novo!'],
+  MARTELO: ['caldrus', 0, 'Artilharia pesada. Uso para consertar o que eu mesmo quebrei.'],
+  FANTASMA: ['ilvane', 0, 'Ela atravessa as coisas. Como eu, às vezes.'],
+  AURORA: ['ioleth', 1, 'O escudo se reconstrói sozinho. Fiz as contas três vezes. Quatro.'],
+  RELAMPAGO: ['seraphel', 0, 'A nave de comando da Vigília. Rápida, precisa e sem desculpas.'],
+  LANCA: ['lirrin', 1, 'O núcleo tem a luz da minha lanterna! Ela nunca apaga, Dren.'],
+};
+
+// veículos bônus: a cápsula 📡 chama um aliado da história. req = fase já liberada no mapa; esc = só com essa escolha
+const ALIADOS = [
+  { id: 'CARGUEIRO', nome: 'Cargueiro do Gorvan', quem: 'gorvan', ex: 1, req: 1, fala: 'Entrega expressa! Pegue antes que caia no vácuo!' },
+  { id: 'BROCA', nome: 'Broca da Madre', quem: 'tzalenka', ex: 1, req: 2, fala: 'Abram caminho, que a mina vai passar!' },
+  { id: 'VEXX', nome: 'Ala do Vexx', quem: 'zephrael', ex: 1, req: 4, fala: 'Segura essa, Dren. Eu cuido da sua asa.' },
+  { id: 'ASA', nome: 'Asa de Asterra', quem: 'seraphel', ex: 0, req: 6, fala: 'Vigília, mísseis no alvo. Agora!' },
+  { id: 'CAPITANIA', nome: 'Capitânia de Eskarion', quem: 'eskarion', ex: 0, req: 11, esc: 'libertar', fala: 'Seraphel ensinou bem você. Fogo!' },
+];
+function aliadosDisponiveis() {
+  let max = 1; for (let n = 1; n <= N_FASES; n++) if (Dados.liberada(n)) max = n;
+  return ALIADOS.filter(a => a.req <= max && (!a.esc || Hist.h().escolha === a.esc));
+}

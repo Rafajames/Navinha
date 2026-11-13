@@ -32,7 +32,7 @@ const Arte = (() => {
    * (y < h/2) e ela é refletida para baixo. Depois: recorte do alfa, luz em cima, sombra
    * embaixo e contorno escuro em volta.
    */
-  function pixelar(w, h, desenha, { espelhar = true, contorno = '#120a1a', luz = 0.28, sombra = -0.32, escala = 2 } = {}) {
+  function pixelar(w, h, desenha, { espelhar = true, contorno = '#120a1a', luz = 0.28, sombra = -0.32, escala = 2, volume = 0 } = {}) {
     const c = tela(w, h), g = c.getContext('2d');
     desenha(pincel(g));
     if (espelhar) {
@@ -50,8 +50,9 @@ const Arte = (() => {
       const i = y * w + x, o = i * 4;
       if (cheio[i]) {
         const cor = [original[o], original[o + 1], original[o + 2]];
-        let f = 0;
-        if (vazio(x, y - 1)) f = luz; else if (vazio(x, y + 1)) f = sombra;
+        let f = volume ? volume * (h / 2 - y - 0.5) / (h / 2) : 0;       // volume: claro em cima, escuro embaixo
+        if (vazio(x, y - 1)) f += luz; else if (vazio(x, y + 1)) f += sombra;
+        else if (volume && vazio(x, y - 2)) f += luz * 0.4;
         if (f) { const m = mistura(cor, f); p[o] = m[0]; p[o + 1] = m[1]; p[o + 2] = m[2]; }
       } else if (contorno && (!vazio(x - 1, y) || !vazio(x + 1, y) || !vazio(x, y - 1) || !vazio(x, y + 1))) {
         p[o] = ct[0]; p[o + 1] = ct[1]; p[o + 2] = ct[2]; p[o + 3] = 255;
@@ -85,114 +86,150 @@ const Arte = (() => {
   }
 
   // ================================================================ NAVES DO JOGADOR
-  // Grade de 34 x 18 (escala 2 = 68 x 36). O casco fica entre x=2 e x=27; os canhões vão até x=33.
+  // Vista de cima, bico para a direita. Grade de 44 x 22 (escala 2 = 88 x 44); desenhe só as linhas 0 a 10 (o resto é espelhado).
   // Cada nave define: casco (desenho), pontos de canhão, pontos de blindagem, núcleo e motores.
-  const NW = 34, NH = 18, CY = 9;
+  const NW = 44, NH = 22, CY = 11;
+  const tom = (hex, f) => { const m = mistura(hexRgb(hex), f); return `rgb(${m[0]},${m[1]},${m[2]})`; };
+  const cabine = (p, x, rx, ry, cor) => { p.elipse(x, CY, rx, ry, tom(cor, -0.45)); p.elipse(x, CY, rx - 0.8, ry - 0.6, cor); p.ret(Math.round(x - rx * 0.4), Math.round(CY - ry * 0.75), Math.max(2, Math.round(rx * 0.6)), 1, '#ffffff'); };
+  const rebites = (p, x1, x2, y, passo, cor) => { for (let x = x1; x <= x2; x += passo) p.pix(x, y, cor); };
   const NAVES_ARTE = {
     FALCAO: {
       cor: '#e8483a', cor2: '#f0a03a', vidro: '#59e3e0', metal: '#8b93a6',
       casco(p, c) {
-        p.poli([[4, 9], [5, 6], [10, 5], [19, 6], [25, 8], [26, 9]], c.cor);          // fuselagem
-        p.poli([[17, 6], [10, 0], [7, 0], [9, 6]], c.cor);                              // asa
-        p.poli([[8, 1], [11, 1], [12, 3], [9, 3]], c.cor2);                             // faixa da asa
-        p.poli([[6, 6], [3, 3], [2, 3], [3, 7]], c.cor2);                               // leme
-        p.elipse(20, 8.4, 3.2, 1.6, c.vidro);                                           // cabine
-        p.ret(12, 7, 5, 1, c.metal);
+        const esc = tom(c.cor, -0.4);
+        p.ret(3, 7, 7, 3, c.metal); p.ret(3, 7, 1, 3, '#20182a');                                 // motores
+        p.poli([[9, 8], [5, 3], [3, 3], [4, 8]], c.cor); p.ret(3, 3, 3, 1, c.cor2);                 // leme
+        p.poli([[6, 11], [6, 8], [11, 7], [30, 7], [38, 9], [43, 11]], c.cor);                       // fuselagem
+        p.poli([[37, 9], [43, 11], [37, 11]], esc);                                                 // bico
+        p.poli([[28, 8], [17, 1], [12, 1], [13, 3], [11, 8]], c.cor);                               // asa enflechada
+        p.poli([[13, 2], [17, 2], [20, 4], [15, 4]], c.cor2); p.ret(12, 1, 3, 1, '#ffe36a');       // faixa e luz da ponta
+        p.poli([[34, 9], [31, 5], [29, 5], [30, 9]], c.cor2);                                       // canard
+        p.ret(24, 8, 3, 2, '#2a2030'); p.ret(15, 8, 1, 3, esc); p.ret(21, 8, 1, 2, esc);           // entrada de ar e painéis
+        rebites(p, 14, 26, 6, 4, tom(c.cor, 0.35));
+        cabine(p, 32, 4.8, 2.4, c.vidro);
       },
-      canhoes: [[24, 9], [14, 2]], motores: [[3, 8]], placas: [[11, 3, 4, 2], [13, 6, 4, 1]], nucleo: [15, 8],
+      canhoes: [[40, 11], [22, 4]], motores: [[3, 8]], placas: [[16, 4, 6, 2], [17, 8, 6, 1]], nucleo: [21, 10],
     },
     COMETA: {
-      cor: '#3a8ef0', cor2: '#bfe4ff', vidro: '#ffe36a', metal: '#7d8aa8',
+      cor: '#3a8ef0', cor2: '#d6efff', vidro: '#ffe36a', metal: '#7d8aa8',
       casco(p, c) {
-        p.poli([[3, 9], [5, 7], [14, 6], [24, 7], [29, 9]], c.cor);
-        p.poli([[12, 6], [7, 2], [5, 2], [7, 7]], c.cor);
-        p.poli([[20, 7], [17, 4], [16, 4], [17, 7]], c.cor2);
-        p.ret(6, 8, 18, 1, c.cor2);
-        p.elipse(22, 8.4, 3, 1.4, c.vidro);
+        const esc = tom(c.cor, -0.45);
+        p.ret(2, 8, 6, 2, c.metal); p.ret(2, 8, 1, 2, '#20182a');
+        p.poli([[8, 9], [5, 5], [4, 5], [5, 9]], c.cor2);
+        p.poli([[4, 11], [5, 9], [12, 8], [32, 8], [41, 10], [43, 11]], c.cor);
+        p.poli([[24, 9], [12, 2], [9, 2], [10, 9]], c.cor);                                         // asa delta
+        p.poli([[10, 3], [12, 3], [18, 7], [13, 7]], c.cor2);
+        p.ret(9, 2, 2, 1, '#ff5a5a');
+        p.ret(33, 9, 7, 1, c.cor2); p.ret(16, 9, 1, 2, esc); p.ret(26, 9, 1, 2, esc);
+        cabine(p, 29, 5, 1.9, c.vidro);
       },
-      canhoes: [[28, 9], [8, 3]], motores: [[3, 8]], placas: [[9, 6, 4, 1], [6, 3, 2, 2]], nucleo: [14, 8],
+      canhoes: [[41, 11], [13, 3]], motores: [[2, 9]], placas: [[14, 6, 4, 1], [20, 9, 5, 1]], nucleo: [21, 10],
     },
     TITA: {
       cor: '#4aa84a', cor2: '#2e6b33', vidro: '#9ff2ff', metal: '#a0a8b0',
       casco(p, c) {
-        p.poli([[3, 9], [3, 5], [8, 4], [20, 4], [24, 6], [25, 9]], c.cor);
-        p.ret(7, 0, 11, 5, c.cor2);                                                     // asa quadrada
-        p.ret(8, 1, 9, 1, c.cor);
-        p.ret(4, 5, 4, 3, c.metal);
-        p.elipse(19, 7.6, 3.4, 2, c.vidro);
-        p.ret(11, 6, 6, 2, c.cor2);
+        const esc = tom(c.cor, -0.45);
+        p.ret(1, 5, 6, 3, c.metal); p.ret(1, 8, 5, 2, c.metal); p.ret(1, 5, 1, 5, '#20182a');     // motores duplos
+        p.poli([[4, 11], [4, 5], [9, 4], [30, 4], [36, 7], [39, 11]], c.cor);
+        p.ret(11, 0, 12, 4, c.cor2); p.ret(12, 1, 10, 1, c.cor); p.ret(11, 0, 2, 1, '#ffd24a');   // blindagem lateral
+        rebites(p, 13, 21, 3, 4, '#c8ced9'); rebites(p, 10, 30, 6, 5, tom(c.cor, 0.35));
+        p.ret(36, 8, 3, 3, c.metal); p.ret(9, 8, 10, 1, c.cor2);
+        p.ret(20, 5, 1, 6, esc); p.ret(27, 5, 1, 6, esc);
+        cabine(p, 32, 3.8, 2.4, c.vidro);
       },
-      canhoes: [[24, 8], [17, 2]], motores: [[3, 6], [3, 8]], placas: [[8, 2, 8, 2], [5, 5, 3, 2]], nucleo: [13, 7],
+      canhoes: [[37, 11], [22, 2]], motores: [[1, 6], [1, 9]], placas: [[10, 6, 8, 2], [23, 6, 3, 2]], nucleo: [25, 10],
     },
     FANTASMA: {
       cor: '#9a4ee0', cor2: '#d9b3ff', vidro: '#ff7ad9', metal: '#5c4f78',
       casco(p, c) {
-        p.poli([[3, 9], [8, 1], [11, 1], [16, 6], [27, 9]], c.cor);                      // delta furtivo
-        p.poli([[9, 3], [11, 3], [14, 6], [11, 6]], c.cor2);
-        p.ret(4, 8, 20, 1, c.metal);
-        p.elipse(19, 8.4, 3, 1.3, c.vidro);
+        p.ret(3, 8, 4, 2, c.metal);
+        p.poli([[4, 11], [12, 1], [16, 1], [24, 7], [40, 10], [42, 11]], c.cor);                    // asa voadora
+        p.poli([[13, 3], [16, 3], [20, 7], [14, 7]], c.cor2);
+        for (let x = 6; x <= 10; x += 2) p.pix(x, 8 - Math.floor((x - 4) / 2), tom(c.cor, -0.45)); // bordas serrilhadas
+        p.ret(18, 9, 15, 1, '#ff7ad9'); p.ret(12, 1, 2, 1, '#ff7ad9');                               // linhas de luz
+        cabine(p, 31, 4.6, 1.7, c.vidro);
       },
-      canhoes: [[26, 9], [11, 2]], motores: [[3, 8]], placas: [[10, 4, 3, 2], [15, 7, 4, 1]], nucleo: [13, 8],
+      canhoes: [[40, 11], [15, 3]], motores: [[3, 9]], placas: [[14, 4, 3, 2], [22, 8, 5, 1]], nucleo: [19, 10],
     },
     VESPA: {
       cor: '#f2c230', cor2: '#2a2230', vidro: '#7af5ff', metal: '#8c8c99',
       casco(p, c) {
-        p.elipse(15, 9, 11, 3.5, c.cor);                                                // abdômen
-        for (let x = 8; x <= 20; x += 4) p.ret(x, 5, 2, 4, c.cor2);                     // listras
-        p.poli([[12, 6], [16, 0], [19, 0], [16, 6]], 'rgba(200,240,255,.95)');           // asa
-        p.elipse(9, 3.5, 3, 1.8, c.cor);                                                // casulo de drone
-        p.elipse(23, 8.4, 2.8, 1.5, c.vidro);
+        p.elipse(13, 11, 9, 5, c.cor);                                                              // abdômen
+        for (const x of [8, 12, 16]) p.ret(x, 6, 2, 5, c.cor2);
+        p.poli([[22, 8], [17, 0], [28, 0], [26, 8]], 'rgba(205,240,255,.95)'); p.ret(20, 2, 6, 1, '#9fdcef'); p.ret(21, 5, 4, 1, '#9fdcef');  // asas
+        p.elipse(27, 11, 6, 3.8, c.cor); p.ret(25, 8, 1, 3, c.cor2);                                // tórax
+        p.elipse(35, 11, 4, 3, c.cor2);                                                             // cabeça
+        p.elipse(14, 3, 3, 1.8, c.cor); p.ret(12, 3, 1, 1, c.cor2);                                // casulo de drone
+        cabine(p, 36, 2.6, 2.2, c.vidro);
       },
-      canhoes: [[25, 9], [11, 3]], motores: [[4, 8], [6, 4]], placas: [[13, 6, 4, 1], [8, 3, 2, 1]], nucleo: [16, 8],
+      canhoes: [[39, 11], [14, 3]], motores: [[4, 9]], placas: [[24, 8, 4, 1], [10, 4, 3, 1]], nucleo: [29, 10],
     },
     MARTELO: {
       cor: '#7e8797', cor2: '#ff8a2a', vidro: '#ffd25a', metal: '#4d5463',
       casco(p, c) {
-        p.poli([[3, 9], [4, 6], [16, 6], [20, 3], [26, 2], [27, 9]], c.cor);              // cabeça de martelo
-        p.ret(21, 3, 5, 2, c.cor2);
-        p.ret(5, 6, 10, 3, c.metal);
-        p.ret(7, 7, 2, 1, c.cor2); p.ret(11, 7, 2, 1, c.cor2);
-        p.elipse(17, 8, 2.6, 1.4, c.vidro);
+        p.ret(1, 6, 6, 5, c.metal); p.ret(1, 6, 1, 5, '#20182a');
+        p.ret(5, 7, 24, 4, c.cor);
+        p.poli([[14, 7], [10, 2], [8, 2], [9, 7]], c.cor); p.ret(8, 2, 2, 1, c.cor2);
+        p.poli([[28, 11], [28, 2], [33, 1], [39, 3], [39, 11]], c.cor);                              // cabeça de martelo
+        p.ret(30, 2, 7, 2, c.cor2); for (let x = 30; x < 37; x += 2) p.pix(x, 3, '#2a2030');        // faixa de aviso
+        for (const x of [9, 15, 21]) { p.ret(x, 6, 2, 5, c.metal); p.ret(x, 8, 2, 1, c.cor2); }
+        rebites(p, 29, 38, 6, 3, '#c8ced9');
+        cabine(p, 25, 2.8, 1.7, c.vidro);
       },
-      canhoes: [[26, 8], [26, 4]], motores: [[3, 7]], placas: [[20, 4, 6, 1], [6, 6, 8, 1]], nucleo: [12, 8],
+      canhoes: [[39, 10], [39, 4]], motores: [[1, 8]], placas: [[30, 5, 7, 1], [6, 7, 2, 1]], nucleo: [19, 10],
     },
     AURORA: {
-      cor: '#e9f4ff', cor2: '#2ed1b5', vidro: '#2ed1b5', metal: '#9fb2c8',
+      cor: '#e9f4ff', cor2: '#2ed1b5', vidro: '#1b8f7c', metal: '#9fb2c8',
       casco(p, c) {
-        p.elipse(15, 9, 10, 4, c.cor);
-        p.elipse(12, 4, 6, 3, 'rgba(0,0,0,0)');
-        p.poli([[9, 6], [12, 1], [17, 1], [18, 6]], c.cor2);                             // anel/barbatana
-        p.poli([[12, 2], [15, 2], [16, 5], [11, 5]], c.cor);
-        p.elipse(20, 8.4, 3, 1.5, '#1b8f7c');
-        p.ret(6, 8, 5, 1, c.cor2);
+        p.ret(4, 8, 5, 2, c.metal);
+        p.elipse(22, 11, 16, 4.6, c.cor);
+        p.poli([[14, 7], [18, 1], [27, 1], [29, 7]], c.cor2); p.poli([[19, 3], [25, 3], [26, 5], [18, 5]], tom(c.cor2, 0.55));  // anel
+        p.ret(8, 9, 26, 1, c.cor2); p.ret(17, 1, 2, 1, '#ffffff');
+        rebites(p, 11, 33, 8, 4, tom(c.cor2, -0.2));
+        cabine(p, 33, 4, 2.1, c.vidro);
       },
-      canhoes: [[24, 9], [17, 2]], motores: [[5, 8]], placas: [[12, 6, 5, 1], [13, 3, 2, 1]], nucleo: [14, 8],
+      canhoes: [[38, 11], [26, 2]], motores: [[4, 8]], placas: [[18, 6, 6, 1], [21, 4, 3, 1]], nucleo: [23, 10],
     },
     RELAMPAGO: {
       cor: '#3d3dbf', cor2: '#5ff0ff', vidro: '#fff36a', metal: '#6a6aa0',
       casco(p, c) {
-        p.poli([[3, 9], [6, 6], [14, 6], [26, 8], [28, 9]], c.cor);
-        p.poli([[10, 6], [18, 0], [20, 0], [15, 6]], c.cor);                            // asa para frente
-        p.poli([[16, 2], [19, 1], [17, 4], [19, 4], [15, 6], [16, 4], [14, 4]], c.cor2); // raio na asa
-        p.poli([[4, 6], [3, 3], [5, 3], [7, 6]], c.cor2);
-        p.elipse(21, 8.4, 3, 1.4, c.vidro);
+        p.ret(3, 8, 4, 2, c.metal);
+        p.poli([[6, 8], [4, 3], [6, 3], [9, 8]], c.cor2);
+        p.poli([[4, 11], [6, 8], [16, 7], [34, 8], [42, 11]], c.cor);
+        p.poli([[14, 8], [26, 0], [29, 0], [22, 8]], c.cor);                                        // asa para a frente
+        p.poli([[24, 2], [27, 1], [25, 4], [27, 4], [22, 7], [23, 5], [21, 5]], c.cor2);            // raio na asa
+        p.ret(26, 0, 2, 1, '#fff36a'); p.ret(13, 9, 1, 2, tom(c.cor, -0.45)); p.ret(28, 9, 1, 2, tom(c.cor, -0.45));
+        cabine(p, 33, 4.2, 1.7, c.vidro);
       },
-      canhoes: [[27, 9], [19, 1]], motores: [[3, 8]], placas: [[9, 6, 4, 1], [16, 3, 2, 1]], nucleo: [14, 8],
+      canhoes: [[41, 11], [27, 1]], motores: [[3, 9]], placas: [[10, 7, 5, 1], [24, 5, 2, 1]], nucleo: [19, 10],
+    },
+    LANCA: {   // Lança Reacender: montada nos Estaleiros de Pharsis, com a luz de Oruvai no núcleo
+      cor: '#ece4cc', cor2: '#ffcf5a', vidro: '#ff9a4a', metal: '#8b93a6',
+      casco(p, c) {
+        p.ret(1, 8, 5, 3, c.metal); p.ret(1, 8, 1, 3, '#20182a');
+        p.poli([[3, 11], [4, 9], [20, 8], [36, 9], [43, 11]], c.cor);                               // espinha da lança
+        p.poli([[33, 9], [43, 11], [33, 11]], c.cor2);                                              // ponta dourada
+        p.poli([[18, 8], [11, 1], [9, 1], [12, 8]], c.cor); p.poli([[11, 2], [12, 2], [15, 6], [13, 6]], c.cor2);
+        p.poli([[27, 8], [23, 4], [21, 4], [23, 8]], c.cor2);
+        p.elipse(16, 11, 3.2, 2.6, '#2a6a8a'); p.elipse(16, 11, 2.3, 1.8, '#7af5ff'); p.pix(15, 9, '#ffffff');  // núcleo com a luz de Oruvai
+        rebites(p, 22, 34, 9, 4, tom(c.cor2, -0.3));
+        cabine(p, 29, 3.6, 1.6, c.vidro);
+      },
+      canhoes: [[42, 11], [12, 3]], motores: [[1, 9]], placas: [[20, 6, 4, 1], [13, 4, 2, 1]], nucleo: [22, 10],
     },
   };
 
   /**
    * Nave com as peças equipadas. pecas = { canhao, motor, blindagem, nucleo, modulo } de 1 a 5.
-   * quadro alterna a chama do motor. Retorna { img, cx, cy } (cx/cy = centro do casco no sprite).
+   * quadro anima a chama do motor (3 quadros). Retorna { img, cx, cy } (cx/cy = centro do casco no sprite).
    */
   function nave(id, pecas = {}, quadro = 0) {
     const pc = Object.assign({ canhao: 1, motor: 1, blindagem: 1, nucleo: 1, modulo: 1 }, pecas);
-    const chave = `nave:${id}:${pc.canhao}${pc.motor}${pc.blindagem}${pc.nucleo}${pc.modulo}:${quadro % 2}`;
+    const chave = `nave:${id}:${pc.canhao}${pc.motor}${pc.blindagem}${pc.nucleo}${pc.modulo}:${quadro % 3}`;
     return memo(chave, () => {
-      const a = NAVES_ARTE[id];
+      const a = NAVES_ARTE[id] || NAVES_ARTE.FALCAO;
       const motorCor = ['#ffd24a', '#ffb02e', '#ff7b2e', '#7ad7ff', '#c08bff'][pc.motor - 1];
       const nucleoCor = ['#7a7f99', '#59e3e0', '#7aff9e', '#ffd24a', '#ff5ad1'][pc.nucleo - 1];
-      // chamas ficam fora do contorno (desenhadas depois, sem sombra)
       const img = pixelar(NW, NH, p => {
         a.casco(p, a);
         // canhões: crescem com o nível
@@ -200,32 +237,57 @@ const Arte = (() => {
         a.canhoes.forEach(([x, y], i) => {
           const len = i === 0 ? comp : Math.max(2, comp - 1);
           if (i > 0 && pc.canhao < 2) return;                         // canhão da asa aparece no nível 2
-          p.ret(x - 2, Math.min(y, CY - esp), len + 2, esp, a.metal);
-          if (pc.canhao >= 3) p.ret(x + len - 1, Math.min(y, CY - esp) - (esp > 1 ? 0 : 0), 1, esp, '#ffcf5a');   // boca do canhão
+          const yy = Math.min(y, CY - esp);
+          p.ret(x - 2, yy, len + 2, esp, a.metal); p.ret(x - 2, yy, 2, esp, '#3a3f50');
+          if (pc.canhao >= 3) p.ret(x + len - 1, yy, 1, esp, '#ffcf5a');   // boca do canhão
         });
-        // blindagem: placas extras
-        if (pc.blindagem >= 2) a.placas.slice(0, pc.blindagem >= 4 ? 2 : 1).forEach(([x, y, w, h]) => p.ret(x, y, w, h, '#c8ced9'));
-        // núcleo: cristal brilhando
-        if (pc.nucleo >= 2) p.ret(a.nucleo[0], a.nucleo[1], pc.nucleo >= 4 ? 2 : 1, 1, nucleoCor);
-        // módulo: antena (ímã) a partir do nível 2
-        if (pc.modulo >= 2) p.ret(a.nucleo[0] - 3, 3, 1, 3, a.metal), p.pix(a.nucleo[0] - 3, 2, '#ff5050');
-      }, { escala: 1 });
-      // chamas
-      const g = img.getContext('2d');
-      const tam = 2 + pc.motor + (quadro % 2);
+        if (pc.blindagem >= 2) a.placas.slice(0, pc.blindagem >= 4 ? 2 : 1).forEach(([x, y, w, h]) => { p.ret(x, y, w, h, '#c8ced9'); p.ret(x, y + h - 1, w, 1, '#8a92a6'); });
+        if (pc.nucleo >= 2) { p.ret(a.nucleo[0], a.nucleo[1], pc.nucleo >= 4 ? 3 : 2, 1, nucleoCor); p.pix(a.nucleo[0], a.nucleo[1] - 1, nucleoCor); }
+        if (pc.modulo >= 2) { p.ret(a.nucleo[0] - 4, 4, 1, 4, a.metal); p.ret(a.nucleo[0] - 5, 3, 3, 1, '#ff5050'); }
+        if (pc.modulo >= 4) p.ret(a.nucleo[0] - 8, 6, 3, 2, '#5ff0ff');
+      }, { escala: 1, volume: 0.22 });
+      // chamas do motor (fora do contorno): 3 quadros, ficam maiores e mais quentes com o motor
+      const g = img.getContext('2d'), q = quadro % 3, tam = 3 + pc.motor + [0, 2, 1][q];
       a.motores.forEach(([x, y]) => {
         for (const yy of [y, NH - 1 - y]) {
           if (yy === NH - 1 - y && y === CY - 1) continue;
           g.fillStyle = motorCor; g.fillRect(x - tam, yy, tam, 1);
           g.fillStyle = '#fff6c8'; g.fillRect(x - Math.ceil(tam / 2), yy, Math.ceil(tam / 2), 1);
-          if (pc.motor >= 3) { g.fillStyle = motorCor; g.fillRect(x - tam + 2, yy - (yy < CY ? 1 : -1) * 0, Math.max(1, tam - 3), 1); }
+          g.fillStyle = motorCor; g.globalAlpha = 0.6; g.fillRect(x - tam + 3, yy + (yy < CY ? -1 : 1), Math.max(1, tam - 4), 1); g.globalAlpha = 1;
+          if (q === 1) { g.fillStyle = '#ffffff'; g.fillRect(x - tam - 2, yy, 1, 1); }
         }
       });
       const s = tela(NW * 2, NH * 2), gs = s.getContext('2d');
       gs.imageSmoothingEnabled = false; gs.drawImage(img, 0, 0, NW * 2, NH * 2);
-      return { img: s, cx: 15 * 2, cy: CY * 2 };
+      return { img: s, cx: 23 * 2, cy: CY * 2 };
     });
   }
+
+  // ================================================================ VEÍCULOS BÔNUS (aliados da história)
+  const VEICULOS_ARTE = {
+    CARGUEIRO: [40, 20, (p, q) => {   // cargueiro do Gorvan: caixas de carga, cabine e faixa amarela
+      p.ret(2, 4, 4, 6, '#6b7385'); p.ret(1, 5, 1, 4, '#20182a');
+      p.ret(5, 3, 26, 7, '#f2c230'); p.ret(5, 9, 26, 1, '#2a2230');
+      for (let x = 7; x < 29; x += 7) { p.ret(x, 4, 5, 4, '#b07a20'); p.ret(x + 1, 5, 3, 1, '#d8a040'); }
+      p.poli([[30, 3], [36, 6], [38, 10], [30, 10]], '#f2c230'); p.elipse(34, 9, 2.6, 1.6, '#7af5ff'); p.ret(33, 8, 2, 1, '#ffffff');
+      p.ret(10, 1, 14, 2, '#8c8c99'); p.ret(16, 0, 2, 1, '#ff5050');
+    }],
+    BROCA: [42, 18, (p, q) => {     // broca da Madre Tzalenka: máquina de mineração com broca giratória
+      p.ret(2, 3, 6, 6, '#6b7385'); p.ret(1, 4, 1, 4, '#20182a');
+      p.ret(7, 2, 18, 7, '#2e6b33'); p.ret(8, 3, 16, 1, '#4aa84a'); p.ret(12, 5, 6, 3, '#9ff2ff');
+      p.ret(10, 0, 4, 2, '#ffd24a');
+      p.poli([[25, 1], [41, 9], [25, 9]], '#a0a8b0');
+      for (let x = 26 + (q % 2) * 2; x < 39; x += 4) p.poli([[x, 2 + (x - 25) * 0.45], [x + 2, 3 + (x - 25) * 0.45], [x + 1, 9], [x - 1, 9]], '#5c6270');
+    }],
+    CAPITANIA: [56, 26, (p, q) => {  // capitânia do Almirante Eskarion: preta e carmesim com borda dourada
+      p.ret(3, 6, 7, 7, '#4d5463'); p.ret(2, 7, 1, 5, '#20182a');
+      p.poli([[8, 13], [8, 6], [16, 3], [40, 3], [50, 8], [55, 13]], '#2a1a22');
+      p.poli([[14, 6], [20, 0], [34, 0], [38, 6]], '#8a1a2a'); p.ret(20, 0, 14, 1, '#ffcf5a');
+      p.ret(10, 9, 38, 1, '#ffcf5a'); for (let x = 14; x < 46; x += 6) p.ret(x, 6, 3, 2, '#ff5a3a');
+      p.elipse(45, 12, 4, 2, '#ffcf5a'); p.ret(44, 11, 2, 1, '#ffffff');
+    }],
+  };
+  function veiculo(id, quadro = 0) { return memo(`veic:${id}:${quadro % 2}`, () => { const [w, h, f] = VEICULOS_ARTE[id]; return pixelar(w, h, p => f(p, quadro % 2), { escala: 2, volume: 0.2 }); }); }
 
   // ================================================================ INIMIGOS (olham para a esquerda)
   const INIMIGOS_ARTE = {
@@ -412,5 +474,5 @@ const Arte = (() => {
   }
   function cristal() { return memo('cristal', () => pixelar(10, 12, p => { p.poli([[5, 0], [9, 4], [5, 11], [1, 4]], '#ff5ad1'); p.poli([[5, 1], [7, 4], [5, 8], [4, 4]], '#ffd6f4'); }, { espelhar: false, escala: 2 })); }
 
-  return { nave, inimigo, asteroide, chefe, parte, explosao, planeta, iconePeca, drone, moeda, cristal, ampliar, branco, apagado, NAVES_ARTE };
+  return { nave, veiculo, inimigo, asteroide, chefe, parte, explosao, planeta, iconePeca, drone, moeda, cristal, ampliar, branco, apagado, NAVES_ARTE };
 })();

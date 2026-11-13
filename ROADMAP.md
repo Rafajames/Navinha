@@ -14,6 +14,14 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## 🧪 Versão 3.7.0 (no branch `v3.6-historia`; jogável em https://rafajames.github.io/Navinha/teste/)
+
+**Cara de jogo 16 bits (pacote A)** — fontes pixel (Tiny5 nos textos, Press Start 2P no título e no placar; licença OFL em `docs/assets/fontes/`); molduras com cantos cortados e bisel; barra de HUD de metal com SCORE de arcade; linhas de TV antiga (desligam no visual leve); estações espaciais com colunas e casco no Hangar, nas Câmaras e nas fases 5, 10, 12 e 15
+**Naves redesenhadas (pacote B)** — as 8 naves em grade maior (44×22), com cabine com reflexo, painéis, rebites, luzes, sombra de volume e chama do motor em 3 quadros; nova nave **Lança Reacender** (liberada na fase 12 ou comprada), com o Feixe Reacender dourado
+**Hangar novo (pacote C)** — baia com holofote, piso em grade e varredura; nave em 3×; botão 🔍 "Ver de perto" com a nave em 5×, cada peça apontada com o nível e o piloto da história com uma fala
+**Veículos bônus (pacote D)** — cápsula 📡 "Chamado de ajuda" (1 garantida por fase + chance rara): Cargueiro do Gorvan (solta itens), Broca da Madre (atravessa a tela 3 vezes), Ala do Vexx (ala que atira), Asa de Asterra da Seraphel (mísseis) e Capitânia de Eskarion (só com a escolha "libertar"); cada um só aparece depois de conhecido na história
+**Versão de teste** — endereço `/teste/` com save separado e painel 🧪 (liberar naves, fases, estrelas, moedas, chaves, itens, trocar a escolha, rever cenas, invencível, começar no chefe, veículo bônus frequente, zerar save)
+
 ## 🧪 Versão 3.6.0 (pronta no branch `v3.6-historia`, ainda não publicada)
 
 **Mapa com 15 fases (pacote 4)** — Setor 3 · Reacender (fases 11 a 15) com nomes da história em todo o mapa; nomes novos dos chefes (Vharaxis, Kraxul, Syrelith, Nox-Aranth, Ul-Zarkoth e ecos); chefe final novo **Ulthar-Vey, a Fome** (arte própria)

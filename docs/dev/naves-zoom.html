@@ -1,0 +1,6 @@
+<!doctype html><html><body style="background:#10142a;margin:0"><canvas id="c" width="1200" height="760"></canvas>
+<script src="../js/arte.js"></script><script>
+const g=document.getElementById('c').getContext('2d'); g.imageSmoothingEnabled=false;
+Object.keys(Arte.NAVES_ARTE).forEach((id,i)=>{const n=Arte.nave(id,{canhao:5,motor:5,blindagem:5,nucleo:5,modulo:5},1).img;
+ const x=(i%3)*400+10, y=Math.floor(i/3)*250+20; g.drawImage(n,x,y,n.width*4,n.height*4); g.fillStyle='#fff'; g.font='16px sans-serif'; g.fillText(id,x,y+200);});
+</script></body></html>

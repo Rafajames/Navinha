@@ -1,9 +1,12 @@
 /* Navinha Espacial — naves, peças, economia, configurações e dados salvos no aparelho. */
 'use strict';
 
+// versão de teste (endereço /teste/): save separado e painel de teste; o jogo de verdade não é tocado
+const PREFIXO_SAVE = (/\/teste\//.test(location.pathname) || /[?&]teste/.test(location.search)) ? 'teste.' : '';
+const MODO_TESTE = PREFIXO_SAVE !== '' || (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) && /[?&]teste/.test(location.search));
 const armaz = {
-  ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
-  gravar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+  ler(k) { try { return localStorage.getItem(PREFIXO_SAVE + k); } catch (_) { return null; } },
+  gravar(k, v) { try { localStorage.setItem(PREFIXO_SAVE + k, v); } catch (_) {} },
 };
 
 // ============================================================ naves
@@ -25,6 +28,8 @@ const NAVES = [
     vel: 4.8, vidas: 3, cadencia: 10, dano: 1, tam: 46, cor: [80, 230, 200], preco: 11000, cristais: 4 },
   { id: 'RELAMPAGO', nome: 'Relâmpago', desc: 'Cada tiro dá choque num inimigo próximo.', especial: 'Tempestade', descEsp: 'Raios em até 5 alvos por 3s.',
     vel: 5.8, vidas: 2, cadencia: 12, dano: 1.1, tam: 44, cor: [110, 230, 255], preco: 15000, cristais: 10, encadeia: true },
+  { id: 'LANCA', nome: 'Lança Reacender', desc: 'Tiros perfurantes e a luz de Oruvai.', especial: 'Feixe Reacender', descEsp: 'Feixe dourado por 4s que atravessa tudo.',
+    vel: 5, vidas: 3, cadencia: 11, dano: 1.3, tam: 46, cor: [255, 207, 90], perfurante: true, preco: 18000, cristais: 10, condicao: 'ou complete a fase 12 (Estaleiros de Pharsis)' },
 ];
 const naveDe = id => NAVES.find(n => n.id === id);
 
@@ -79,6 +84,7 @@ const Dados = {
     }
     if (p.tita) p.naves.TITA.dono = true;                         // progresso da versão 2.0
     if (p.desafios >= 3) p.naves.FANTASMA.dono = true;
+    if ((p.mapa[12] || 0) >= 1) p.naves.LANCA.dono = true;        // quem já passou da fase 12 ganha a Lança (versão 3.7)
     p.naveAtual = p.naveAtual || 'FALCAO';
     // recompensa diária (versão 3.4): último dia coletado (AAAA-MM-DD) e dia do ciclo (1 a 7; 0 = nenhum)
     if (!p.diaria || typeof p.diaria !== 'object') p.diaria = {};

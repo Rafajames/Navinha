@@ -14,15 +14,17 @@
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <style>
+  @font-face { font-family: 'Tiny5'; src: url(assets/fontes/tiny5-latin-400-normal.woff2) format('woff2'); font-display: swap; }
+  @font-face { font-family: 'Press Start 2P'; src: url(assets/fontes/press-start-2p-latin-400-normal.woff2) format('woff2'); font-weight: 400; font-display: swap; }
   :root { --bg: #04050f; --painel: rgba(8, 10, 24, .92); --borda: rgba(120, 150, 255, .35); --amarelo: #ffd650; --texto: #eef0ff; --cinza: #aab0c8; }
   html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; touch-action: none;
     -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
-    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--texto); }
+    font-family: "Tiny5", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; color: var(--texto); }
   #jogo { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; background: #000; }
 
   .overlay { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; z-index: 10; padding: 16px; box-sizing: border-box; }
   .overlay.ativo { display: flex; }
-  .caixa { background: var(--painel); border: 2px solid var(--borda); border-radius: 18px; padding: 22px 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  .caixa { background: var(--painel); border: 2px solid var(--borda); border-radius: 4px; padding: 22px 24px; max-width: 420px; width: 100%; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
   .caixa h2 { margin: 0 0 6px; color: var(--amarelo); font-size: 26px; }
   .caixa p { margin: 6px 0 14px; color: var(--cinza); font-size: 15px; line-height: 1.4; }
   .caixa input { width: 100%; box-sizing: border-box; font-size: 22px; font-weight: 700; padding: 12px; border-radius: 12px; border: 2px solid var(--borda);
