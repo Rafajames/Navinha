@@ -14,7 +14,7 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
-## 🧪 Versão 3.7.0 (no branch `v3.6-historia`; jogável em https://rafajames.github.io/Navinha/teste/)
+## 🧪 Versão 3.7.0 (no branch `v3.6-historia`; jogável em https://rafajames.github.io/Navinha/docs/teste/)
 
 **Cara de jogo 16 bits (pacote A)** — fontes pixel (Tiny5 nos textos, Press Start 2P no título e no placar; licença OFL em `docs/assets/fontes/`); molduras com cantos cortados e bisel; barra de HUD de metal com SCORE de arcade; linhas de TV antiga (desligam no visual leve); estações espaciais com colunas e casco no Hangar, nas Câmaras e nas fases 5, 10, 12 e 15
 **Naves redesenhadas (pacote B)** — as 8 naves em grade maior (44×22), com cabine com reflexo, painéis, rebites, luzes, sombra de volume e chama do motor em 3 quadros; nova nave **Lança Reacender** (liberada na fase 12 ou comprada), com o Feixe Reacender dourado
