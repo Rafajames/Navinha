@@ -14,13 +14,14 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
-## 🧪 Versão 3.7.1 (no branch `v3.6-historia`; jogável em https://rafajames.github.io/Navinha/docs/teste/)
+## 🧪 Versão 3.7.2 (no branch `v3.6-historia`; jogável em https://rafajames.github.io/Navinha/docs/teste/)
 
 **Cara de jogo 16 bits (pacote A)** — fontes pixel (Tiny5 nos textos, Press Start 2P no título e no placar; licença OFL em `docs/assets/fontes/`); molduras com cantos cortados e bisel; barra de HUD de metal com SCORE de arcade; linhas de TV antiga (desligam no visual leve); estações espaciais com colunas e casco no Hangar, nas Câmaras e nas fases 5, 10, 12 e 15
 **Naves redesenhadas (pacote B)** — as 8 naves em grade maior (44×22), com cabine com reflexo, painéis, rebites, luzes, sombra de volume e chama do motor em 3 quadros; nova nave **Lança Reacender** (liberada na fase 12 ou comprada), com o Feixe Reacender dourado
 **Hangar novo (pacote C)** — baia com holofote, piso em grade e varredura; nave em 3×; botão 🔍 "Ver de perto" com a nave em 5×, cada peça apontada com o nível e o piloto da história com uma fala
 **Veículos bônus (pacote D)** — cápsula 📡 "Chamado de ajuda" (1 garantida por fase + chance rara): Cargueiro do Gorvan (solta itens), Broca da Madre (atravessa a tela 3 vezes), Ala do Vexx (ala que atira), Asa de Asterra da Seraphel (mísseis) e Capitânia de Eskarion (só com a escolha "libertar"); cada um só aparece depois de conhecido na história
 **3.7.1 (pedidos do James no celular)** — texto do botão amarelo legível; fases mais longas e crescendo pelo mapa (fase 1: 35 inimigos · fase 15: cerca de 100); setas do Hangar ao lado do nome e botão "🔍 Ver" separado; vibração e animação em todo toque; entrada na fase com salto do hiperespaço (sai o efeito com personagem); desenho protegido contra erro e aviso de erro na tela no modo teste
+**3.7.2** — arma de reserva: ao pegar uma arma diferente, a que está em uso vai para a reserva; com a reserva cheia, a arma nova substitui só a que está em uso (a guardada fica); botão ⇄ (tecla E) troca as duas, cada uma com o seu nível; pegar a mesma arma da reserva sobe o nível dela
 **Versão de teste** — endereço `/teste/` com save separado e painel 🧪 (liberar naves, fases, estrelas, moedas, chaves, itens, trocar a escolha, rever cenas, invencível, começar no chefe, veículo bônus frequente, zerar save)
 
 ## 🧪 Versão 3.6.0 (pronta no branch `v3.6-historia`, ainda não publicada)
