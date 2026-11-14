@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.7.1';
+const VERSAO = '3.7.2';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -692,7 +692,7 @@ class Player {
     this.escudo = this.at.escudoInicial; this.timerEscudo = 0; this.invencivel = 0; this.tiroRapido = 0; this.especialAtivo = 0; this.vivo = true;
     this.tirosDisparados = 0; this.recarga = 0; this.missilFila = 0; this.obusFila = 0; this.quadro = 0;
     this.querEspecial = false; this.querBomba = false; this.distMovida = 0;
-    this.tipoArma = 'PADRAO';
+    this.tipoArma = 'PADRAO'; this.reserva = null;   // reserva: { tipo, nivel } (arma guardada; troca no botão ⇄)
     this.efeitos = { BOLHA: 0, ESTRELA: 0, CANHAO: 0, IMA: 0 };   // itens com tempo (quadros restantes)
     this.drones = []; for (let i = 0; i < this.at.drones; i++) this.drones.push({ a: i * Math.PI, rec: i * 10, temp: false });
   }
@@ -1137,6 +1137,7 @@ class Jogo {
     const podeAtirar = ['JOGANDO', 'ALERTA_CHEFE', 'CHEFE'].includes(this.estado);
     if (this.poderCd > 0) this.poderCd--;
     if (podeAtirar && Input.ap('KeyV', 'KeyQ')) this.usarPoder();
+    if (Input.ap('KeyE', 'KeyC')) this.trocarArma();
     this.player.update(this, podeAtirar);
     if (this.comboTimer > 0 && --this.comboTimer === 0) this.combo = 0;
 
@@ -1500,7 +1501,9 @@ class Jogo {
       case 'ARMA': if (p.arma < 5) p.arma++; else { this.pontos += 1000; txt = 'ARMA MÁXIMA +1000'; } break;
       case 'TIPO_ARMA':
         if (p.tipoArma === t.arma) { if (p.arma < 5) { p.arma++; txt = `${t.nome} NÍVEL ${p.arma}`; } else { this.pontos += 1000; txt = `${t.nome} MÁXIMO +1000`; } }
-        else { p.tipoArma = t.arma; txt = `${t.nome} NÍVEL ${p.arma}`; }
+        else if (p.reserva && p.reserva.tipo === t.arma) { p.reserva.nivel = Math.min(5, p.reserva.nivel + 1); txt = `RESERVA: ${t.nome} NÍVEL ${p.reserva.nivel}`; }
+        else if (!p.reserva && p.tipoArma !== 'PADRAO') { p.reserva = { tipo: p.tipoArma, nivel: p.arma }; txt = `${ARMAS[p.tipoArma].nome.toUpperCase()} GUARDADA · ${t.nome}`; p.tipoArma = t.arma; }
+        else { p.tipoArma = t.arma; txt = `${t.nome} NÍVEL ${p.arma}`; }   // com reserva cheia, a nova substitui a arma em uso
         break;
       case 'RAPIDO': p.tiroRapido = 480; break;
       case 'BOLHA': case 'ESTRELA': case 'CANHAO': case 'IMA': p.efeitos[t.id] = t.tempo; break;
@@ -1623,6 +1626,7 @@ class Jogo {
     const arma = ARMAS[p.tipoArma], corArma = p.tipoArma === 'PADRAO' ? AMARELO : rgba(arma.cor, 1);
     for (let i = 0; i < 5; i++) { g.fillStyle = i < p.arma ? corArma : '#3c3c50'; g.fillRect(x + i * 15, 17, 11, 24); }
     x += 5 * 15 + 12;
+    if (p.reserva) { const ra = ARMAS[p.reserva.tipo], rs = `⇄ ${ra.nome.toUpperCase()} ${p.reserva.nivel}`; texto(g, rs, x, 38, 17, rgba(ra.cor, 1), 'left', true); x += largura(g, rs, 17) + 14; }
     const pronto = p.energia >= 100;
     texto(g, '★', x, 40, 26, pronto ? '#fff' : rgba(p.tipo.cor, 1), 'left', false);
     barra(g, x + 30, 20, 84, 20, p.energia / 100, pronto ? (pisca(q, 8) ? '#fff' : rgba(p.tipo.cor, 1)) : rgba(p.tipo.cor, 0.55));
@@ -1698,6 +1702,13 @@ class Jogo {
     caixa(g, bx + 18, by - br - 4, 30, 26, 10, tem ? '#ff4b46' : '#444', null);
     texto(g, String(p.bombas), bx + 33, by - br + 15, 18, '#fff', 'center', false);
     botoes.push({ x: bx - br - 8, y: by - br - 8, w: br * 2 + 16, h: br * 2 + 16, acao: () => { if (tem) p.querBomba = true; else vibrar(15); } });
+    if (p.reserva) {
+      const ra = ARMAS[p.reserva.tipo], tx = W - 318, ty = H - 62, tr = 34;
+      g.fillStyle = rgba(ra.cor, 0.25); g.beginPath(); g.arc(tx, ty, tr, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = rgba(ra.cor, 0.9); g.lineWidth = 3; g.stroke();
+      texto(g, '⇄', tx, ty - 2, 22, '#fff', 'center', false); texto(g, ra.nome.toUpperCase(), tx, ty + 20, 13, rgba(ra.cor, 1), 'center');
+      botoes.push({ x: tx - tr - 6, y: ty - tr - 6, w: tr * 2 + 12, h: tr * 2 + 12, acao: () => this.trocarArma() });
+    }
     const eq = this.equipPoder;
     if (eq) {
       const qx = W - 196, qy = H - 178, qr = 38, pr = this.poderCd <= 0, it = ITENS_CAM[eq.id];
@@ -2108,6 +2119,13 @@ class Jogo {
     }, { tam: 16, cor: '#ff8a8a' });
   }
 
+  /** Troca a arma em uso com a da reserva (cada uma mantém o próprio nível). */
+  trocarArma() {
+    const p = this.player; if (!p.reserva || !p.vivo) return;
+    const r = p.reserva; p.reserva = { tipo: p.tipoArma, nivel: p.arma }; p.tipoArma = r.tipo; p.arma = r.nivel;
+    const a = ARMAS[p.tipoArma]; Som.tocar('menu'); vibrar(20);
+    this.efeitos.anel(p.x, p.y, a.cor, 34); this.aviso(`${a.nome.toUpperCase()} NÍVEL ${p.arma}`, a.cor);
+  }
   // ---------------------------------------------------------- entrada na fase: salto do hiperespaço (no lugar do efeito com personagem)
   chegadaHiper(t) {
     const p = this.player;
