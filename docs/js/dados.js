@@ -1,6 +1,7 @@
 /* Navinha Espacial — naves, peças, economia, configurações e dados salvos no aparelho. */
 'use strict';
 
+// save no aparelho. Com o código de teste (Dados.prog.codigo) liberado, aparecem as ferramentas de teste no menu.
 const armaz = {
   ler(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
   gravar(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
@@ -25,6 +26,8 @@ const NAVES = [
     vel: 4.8, vidas: 3, cadencia: 10, dano: 1, tam: 46, cor: [80, 230, 200], preco: 11000, cristais: 4 },
   { id: 'RELAMPAGO', nome: 'Relâmpago', desc: 'Cada tiro dá choque num inimigo próximo.', especial: 'Tempestade', descEsp: 'Raios em até 5 alvos por 3s.',
     vel: 5.8, vidas: 2, cadencia: 12, dano: 1.1, tam: 44, cor: [110, 230, 255], preco: 15000, cristais: 10, encadeia: true },
+  { id: 'LANCA', nome: 'Lança Reacender', desc: 'Tiros perfurantes e a luz de Oruvai.', especial: 'Feixe Reacender', descEsp: 'Feixe dourado por 4s que atravessa tudo.',
+    vel: 5, vidas: 3, cadencia: 11, dano: 1.3, tam: 46, cor: [255, 207, 90], perfurante: true, preco: 18000, cristais: 10, condicao: 'ou complete a fase 12 (Estaleiros de Pharsis)' },
 ];
 const naveDe = id => NAVES.find(n => n.id === id);
 
@@ -79,6 +82,7 @@ const Dados = {
     }
     if (p.tita) p.naves.TITA.dono = true;                         // progresso da versão 2.0
     if (p.desafios >= 3) p.naves.FANTASMA.dono = true;
+    if ((p.mapa[12] || 0) >= 1) p.naves.LANCA.dono = true;        // quem já passou da fase 12 ganha a Lança (versão 3.7)
     p.naveAtual = p.naveAtual || 'FALCAO';
     // recompensa diária (versão 3.4): último dia coletado (AAAA-MM-DD) e dia do ciclo (1 a 7; 0 = nenhum)
     if (!p.diaria || typeof p.diaria !== 'object') p.diaria = {};
@@ -93,6 +97,16 @@ const Dados = {
       missoes: Array.isArray(h.missoes) ? h.missoes.filter(m => m && typeof m.id === 'string').map(m => ({ id: m.id, prog: num(m.prog), pego: !!m.pego })) : [],
       stat: { abates: num((h.stat || {}).abates), chefes: num((h.stat || {}).chefes), fases: num((h.stat || {}).fases), moedas: num((h.stat || {}).moedas) },
       conq: h.conq && typeof h.conq === 'object' ? h.conq : {},
+      escolha: h.escolha === 'destruir' || h.escolha === 'libertar' ? h.escolha : '',   // versão 3.6: escolha no fim do Setor 2
+      finais: h.finais && typeof h.finais === 'object' ? h.finais : {},
+    };
+    // câmaras (versão 3.6): chaves, câmaras concluídas, itens (id -> raridade 1..4) e o que está equipado
+    const c = p.cam && typeof p.cam === 'object' ? p.cam : {}, eq = c.equip && typeof c.equip === 'object' ? c.equip : {};
+    p.cam = {
+      chaves: Number.isInteger(c.chaves) ? Math.max(0, Math.min(5, c.chaves)) : 1,
+      feitas: c.feitas && typeof c.feitas === 'object' ? c.feitas : {},
+      itens: Object.fromEntries(Object.entries(c.itens && typeof c.itens === 'object' ? c.itens : {}).filter(([id, nv]) => typeof ITENS_CAM !== 'undefined' ? ITENS_CAM[id] && Number.isInteger(nv) && nv >= 1 && nv <= 4 : Number.isInteger(nv))),
+      equip: { reliquia: typeof eq.reliquia === 'string' ? eq.reliquia : '', selo: typeof eq.selo === 'string' ? eq.selo : '', poder: typeof eq.poder === 'string' ? eq.poder : '' },
     };
     this.salvar();
   },

@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.6.0';
+const VERSAO = '3.8.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -268,6 +268,10 @@ const FASES = [
       formas: [[ATQ.LEQUE, ATQ.ESPIRAL], [ATQ.RAJADA, ATQ.INVOCAR, ATQ.MURO], [ATQ.ANEL, ATQ.ESPIRAL, ATQ.MURO, ATQ.RAJADA]] },
     ceu: ['#020e0a', '#061e16'], neb: [[30, 160, 100], [160, 140, 30]], planeta: ['#2a9a6a', '#8af0b0', false] },
 ];
+// chefe final da história (fase 15): Ulthar-Vey, a Fome
+const CHEFE_FINAL = { arte: 'ULTHAR', nome: 'Ulthar-Vey, a Fome', vida: 1000, invoca: T.TELEPORTE,
+  partes: [['ferrao', -96, 0, 70], ['canhao', -74, -52, 60], ['canhao', -74, 52, 60], ['hangar', 34, -62, 60], ['missil', 34, 62, 60]],
+  formas: [[ATQ.LEQUE, ATQ.ESPIRAL], [ATQ.ANEL, ATQ.INVOCAR, ATQ.MURO], [ATQ.ESPIRAL, ATQ.RAJADA, ATQ.ANEL, ATQ.MURO]] };
 function sortearTipo(f) {
   const tot = f.tipos.reduce((s, t) => s + t[1], 0);
   let r = rnd(tot);
@@ -465,6 +469,7 @@ const ITENS_ARMA = Object.values(ARMAS).filter(a => a.letra).map(a => ({ id: 'TI
 const TODOS_ITENS = POWERUPS.concat(ITENS_ARMA);
 const ITEM_DE = id => POWERUPS.find(p => p.id === id);
 const MOEDA = { id: 'MOEDA', cor: [255, 210, 74] }, CRISTAL = { id: 'CRISTAL', cor: [255, 90, 209] };
+const CHAMADO = { id: 'CHAMADO', nome: 'CHAMADO DE AJUDA', letra: '📡', cor: [110, 230, 255], desc: 'Chama um aliado da história' };
 function sortearPowerUp() {
   const total = TODOS_ITENS.reduce((s, p) => s + p.peso, 0);
   let r = rnd(total);
@@ -581,7 +586,30 @@ class Fundo {
     const [c1, c2, anel] = f.planeta;
     this.planetas = [{ img: Arte.planeta(f.n, 26, c1, c2, anel), x: W * 0.6, y: 90 + r() * 120, v: 0.12 }, { img: Arte.planeta(f.n + 9, 9, c2, c1, false), x: W * 0.15, y: 330 + r() * 120, v: 0.2 }];
   }
+  /** Estação espacial por cima do céu (câmaras e fases dentro de estruturas): colunas ao fundo e casco no teto e no chão. cor = luzes; null desliga. */
+  estrutura(cor) {
+    this.est = null; if (!cor) return;
+    const luz = cor, col = document.createElement('canvas'); col.width = 256; col.height = H; const a = col.getContext('2d');
+    // colunas e vigas ao fundo
+    a.fillStyle = '#121626'; a.fillRect(96, 0, 44, H); a.fillStyle = '#1e2338'; a.fillRect(98, 0, 8, H); a.fillStyle = '#0a0c16'; a.fillRect(134, 0, 6, H);
+    for (let y = 70; y < H; y += 46) { a.fillStyle = '#2a3048'; a.fillRect(100, y, 36, 4); a.fillStyle = '#080a12'; a.fillRect(100, y + 4, 36, 2); a.fillStyle = '#3a4260'; a.fillRect(104, y + 14, 3, 3); a.fillRect(128, y + 14, 3, 3); }
+    a.fillStyle = luz; for (let y = 96; y < H; y += 92) a.fillRect(116, y, 4, 8);
+    a.strokeStyle = '#141828'; a.lineWidth = 6; a.beginPath(); a.moveTo(140, 150); a.lineTo(256, 260); a.moveTo(140, 420); a.lineTo(256, 320); a.stroke();
+    // casco: teto (embaixo do HUD) e chão
+    const casco = (alt, topo) => {
+      const c = document.createElement('canvas'); c.width = 256; c.height = alt; const b = c.getContext('2d');
+      b.fillStyle = '#262c42'; b.fillRect(0, 0, 256, alt);
+      b.fillStyle = topo ? '#0a0c16' : '#46507a'; b.fillRect(0, topo ? alt - 3 : 0, 256, 3);
+      b.fillStyle = topo ? '#46507a' : '#0a0c16'; b.fillRect(0, topo ? 0 : alt - 3, 256, 3);
+      for (let x = 0; x < 256; x += 64) { b.fillStyle = '#0e1120'; b.fillRect(x, 0, 2, alt); b.fillStyle = '#3a4262'; b.fillRect(x + 2, 0, 1, alt); b.fillStyle = '#5a6488'; b.fillRect(x + 8, 7, 2, 2); b.fillRect(x + 8, alt - 9, 2, 2); }
+      for (let x = 128; x < 192; x += 8) { b.fillStyle = (x / 8) % 2 ? '#ffd24a' : '#1a1610'; b.fillRect(x, topo ? 5 : alt - 11, 8, 6); }
+      b.fillStyle = luz; b.fillRect(40, Math.floor(alt / 2) - 1, 14, 3); b.fillRect(220, Math.floor(alt / 2) - 1, 6, 3);
+      return c;
+    };
+    this.est = { col, teto: casco(24, true), chao: casco(28, false), d1: 0, d2: 0 };
+  }
   update() {
+    if (this.est) { this.est.d1 = (this.est.d1 + 0.9 + this.hiper * 8) % 256; this.est.d2 = (this.est.d2 + 2.4 + this.hiper * 14) % 256; }
     this.desloc = (this.desloc + 0.25 + this.hiper * 6) % this.ceu.width;
     for (const p of this.planetas) { p.x -= p.v * (1 + this.hiper * 10); if (p.x < -p.img.width) p.x = W + rnd(200, 600); }
     for (const e of this.estrelas) { e.x -= [0.55, 1.3, 2.6][e.c] * (1 + this.hiper * 12); if (e.x < -60) { e.x = W + rnd(40); e.y = rnd(H); } }
@@ -594,6 +622,11 @@ class Fundo {
       const b = [110, 180, 255][e.c], s = e.c + 1;
       g.fillStyle = `rgb(${b},${b},${Math.min(255, b + 20)})`;
       if (this.hiper > 0.05) g.fillRect(e.x, e.y, this.hiper * 54 * (e.c + 1), Math.max(1, s - 1)); else g.fillRect(Math.round(e.x), Math.round(e.y), s, s);
+    }
+    const t = this.est;
+    if (t) {
+      for (let x = -Math.floor(t.d1); x < W; x += 256) g.drawImage(t.col, x, 0);
+      for (let x = -Math.floor(t.d2); x < W; x += 256) { g.drawImage(t.teto, x, 58); g.drawImage(t.chao, x, H - 28); }
     }
   }
 }
@@ -623,7 +656,8 @@ document.addEventListener('visibilitychange', () => {
   else Som.pausarMusica(false);
 });
 const paraLogico = e => ({ x: (e.clientX - offX) / escala, y: (e.clientY - offY) / escala });
-let botoes = [];
+function erroJogo(e) { console.error(e); window.__ultimoErro = String(e && (e.stack || e.message) || e).split('\n').slice(0, 2).join(' · '); }
+let botoes = [], confirmarZerar = false, pressionado = null;   // pressionado: último botão tocado (animação de toque)
 function botaoEm(p) { for (let i = botoes.length - 1; i >= 0; i--) { const b = botoes[i]; if (p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) return b; } return null; }
 
 cv.addEventListener('pointerdown', e => {
@@ -631,7 +665,7 @@ cv.addEventListener('pointerdown', e => {
   if (!jogo) return;
   if (e.pointerType !== 'mouse') usouToque = true;
   const p = paraLogico(e), b = botaoEm(p);
-  if (b) { b.acao(); return; }
+  if (b) { pressionado = { bt: !!b.bt, dx: b.dx, dy: b.dy, x: b.x, y: b.y, w: b.w, h: b.h, ate: performance.now() + 160 }; vibrar(12); b.acao(); return; }
   if (jogo.emPartida() && !jogo.pausado && Input.arrastoId === null) {
     Input.arrastoId = e.pointerId; Input.ultX = p.x; Input.ultY = p.y; Input.tocando = true;
     if (Config.controle === 'joystick') Input.joy = { ox: p.x, oy: p.y, x: p.x, y: p.y };
@@ -658,7 +692,7 @@ class Player {
     this.escudo = this.at.escudoInicial; this.timerEscudo = 0; this.invencivel = 0; this.tiroRapido = 0; this.especialAtivo = 0; this.vivo = true;
     this.tirosDisparados = 0; this.recarga = 0; this.missilFila = 0; this.obusFila = 0; this.quadro = 0;
     this.querEspecial = false; this.querBomba = false; this.distMovida = 0;
-    this.tipoArma = 'PADRAO';
+    this.tipoArma = 'PADRAO'; this.reserva = null;   // reserva: { tipo, nivel } (arma guardada; troca no botão ⇄)
     this.efeitos = { BOLHA: 0, ESTRELA: 0, CANHAO: 0, IMA: 0 };   // itens com tempo (quadros restantes)
     this.drones = []; for (let i = 0; i < this.at.drones; i++) this.drones.push({ a: i * Math.PI, rec: i * 10, temp: false });
   }
@@ -681,7 +715,7 @@ class Player {
     this.x += clamp(Input.dx, -lim, lim); this.y += clamp(Input.dy, -lim, lim);
     Input.dx = 0; Input.dy = 0;
     const m = this.tam / 2;
-    this.x = clamp(this.x, m, W - m); this.y = clamp(this.y, 50 + m * 0.5, H - m * 0.7);
+    this.x = clamp(this.x, 40, W - 36); this.y = clamp(this.y, 82, H - 22);   // sprite de 88x44: não entra embaixo do HUD
     this.distMovida += hyp(this.x - x0, this.y - y0);
 
     if (this.invencivel > 0) this.invencivel--; if (this.tiroRapido > 0) this.tiroRapido--;
@@ -763,7 +797,7 @@ class Player {
   }
   ativarEspecial(j) {
     this.energia = 0; Som.tocar('especial'); j.ev('especial');
-    const base = { FALCAO: 60, COMETA: 240, TITA: 300, FANTASMA: 180, VESPA: 480, MARTELO: 60, AURORA: 180, RELAMPAGO: 180 }[this.tipo.id];
+    const base = { FALCAO: 60, COMETA: 240, TITA: 300, FANTASMA: 180, VESPA: 480, MARTELO: 60, AURORA: 180, RELAMPAGO: 180, LANCA: 240 }[this.tipo.id] || 180;
     this.especialAtivo = Math.round(base * this.at.duracaoEsp);
     switch (this.tipo.id) {
       case 'FALCAO': this.missilFila = Math.round(12 * this.at.duracaoEsp); break;
@@ -777,7 +811,7 @@ class Player {
   }
   turbo() { return this.tipo.id === 'COMETA' && this.especialAtivo > 0; }
   plasma() { return this.tipo.id === 'TITA' && this.especialAtivo > 0; }
-  laser() { return this.tipo.id === 'FANTASMA' && this.especialAtivo > 0; }
+  laser() { return (this.tipo.id === 'FANTASMA' || this.tipo.id === 'LANCA') && this.especialAtivo > 0; }
   vulneravel() { return this.vivo && this.invencivel <= 0 && !this.turbo() && !this.plasma() && !this.protegidoItem(); }
   protegidoItem() { return this.efeitos.BOLHA > 0 || this.efeitos.ESTRELA > 0; }
   destroiNoContato() { return this.turbo() || this.efeitos.ESTRELA > 0; }
@@ -790,7 +824,8 @@ class Player {
     const s = Arte.nave(this.tipo.id, this.pecas, Math.floor(this.quadro / 4)), m = this.tam / 2;
     if (this.laser()) {
       const alt = 20 + Math.sin(this.quadro * 0.6) * 4, gr = g.createLinearGradient(0, this.y - alt, 0, this.y + alt);
-      gr.addColorStop(0, 'rgba(220,120,255,0)'); gr.addColorStop(0.5, 'rgba(240,200,255,.9)'); gr.addColorStop(1, 'rgba(220,120,255,0)');
+      const ouro = this.tipo.id === 'LANCA', c0 = ouro ? 'rgba(255,190,60,0)' : 'rgba(220,120,255,0)';
+      gr.addColorStop(0, c0); gr.addColorStop(0.5, ouro ? 'rgba(255,236,170,.92)' : 'rgba(240,200,255,.9)'); gr.addColorStop(1, c0);
       g.fillStyle = gr; g.fillRect(this.x + m - 6, this.y - alt, W, alt * 2); g.fillStyle = '#fff'; g.fillRect(this.x + m - 6, this.y - 4, W, 8);
     }
     const dx = Math.round(this.x - s.cx), dy = Math.round(this.y - s.cy);
@@ -819,7 +854,9 @@ class Player {
 }
 
 // ============================================================ desenho: utilidades
-const FONTE = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONTE = '"Tiny5", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const FONTE_ARCADE = '"Press Start 2P", ui-monospace, Menlo, monospace';   // títulos e números do HUD
+try { document.fonts.load('700 20px "Tiny5"'); document.fonts.load('20px "Press Start 2P"'); } catch (_) {}
 const AMARELO = '#ffd650', CIANO = '#6edcff', CINZA = '#aab0c8', ROSA = '#ff7ad9';
 const MINF = 15, T_ = t => Math.max(MINF, t);
 function texto(g, s, x, y, tam, cor, al = 'left', sombra = true, peso = 800) {
@@ -829,10 +866,21 @@ function texto(g, s, x, y, tam, cor, al = 'left', sombra = true, peso = 800) {
   g.fillStyle = cor; g.fillText(s, x, y);
 }
 function largura(g, s, tam, peso = 800) { tam = T_(tam); g.font = `${peso} ${tam}px ${FONTE}`; return g.measureText(s).width; }
+/** Moldura em pixel art: cantos cortados (chanfro), borda e bisel claro em cima / escuro embaixo, como menus de 16 bits. */
 function caixa(g, x, y, w, h, r, fill, stroke, lw = 2) {
-  g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath();
+  x = Math.round(x); y = Math.round(y); w = Math.round(w); h = Math.round(h);
+  const c = Math.max(0, Math.min(Math.round(r * 0.6 / 2) * 2, Math.floor(w / 4), Math.floor(h / 4)));
+  g.beginPath(); g.moveTo(x + c, y); g.lineTo(x + w - c, y); g.lineTo(x + w, y + c); g.lineTo(x + w, y + h - c); g.lineTo(x + w - c, y + h);
+  g.lineTo(x + c, y + h); g.lineTo(x, y + h - c); g.lineTo(x, y + c); g.closePath();
   if (fill) { g.fillStyle = fill; g.fill(); }
-  if (stroke) { g.strokeStyle = stroke; g.lineWidth = lw; g.stroke(); }
+  if (stroke) {
+    g.strokeStyle = stroke; g.lineWidth = lw; g.stroke();
+    if (h > 14 && w > 14) {
+      const k = Math.ceil(lw) + 1;
+      g.fillStyle = 'rgba(255,255,255,.13)'; g.fillRect(x + c + 1, y + k, w - 2 * c - 2, 2);
+      g.fillStyle = 'rgba(0,0,0,.32)'; g.fillRect(x + c + 1, y + h - k - 2, w - 2 * c - 2, 2);
+    }
+  }
 }
 const painel = (g, x, y, w, h) => caixa(g, x, y, w, h, 14, 'rgba(8,10,24,.84)', 'rgba(120,150,255,.3)');
 function barra(g, x, y, w, h, pct, cor) {
@@ -848,11 +896,15 @@ function quebrar(g, s, x, y, w, tam, cor, peso = 600, al = 'left') {
   return yy;
 }
 function botao(g, rotulo, cx, cy, w, h, acao, o = {}) {
-  const x = cx - w / 2, y = cy - h / 2, off = o.desligado;
+  const x0 = cx - w / 2, y0 = cy - h / 2, off = o.desligado;
+  const apertado = !off && pressionado && pressionado.bt && Math.abs(pressionado.dx - x0) < 1 && Math.abs(pressionado.dy - y0) < 1 && performance.now() < pressionado.ate;
+  const x = x0, y = y0 + (apertado ? 2 : 0);
+  if (apertado) { g.fillStyle = 'rgba(255,214,80,.28)'; g.fillRect(x - 3, y - 3, w + 6, h + 6); }
   caixa(g, x, y, w, h, 12, off ? 'rgba(30,30,44,.7)' : o.sel ? 'rgba(255,214,80,.16)' : o.fundo || 'rgba(10,14,34,.82)', off ? 'rgba(255,255,255,.12)' : o.sel ? AMARELO : o.borda || 'rgba(120,150,255,.4)', o.sel ? 3 : 2);
-  texto(g, rotulo, cx, cy + (o.tam || 20) * 0.36, o.tam || 20, off ? '#6a6e84' : o.cor || (o.sel ? AMARELO : '#fff'), 'center');
+  const claro = o.fundo === AMARELO || o.semSombra;
+  texto(g, rotulo, cx, cy + (o.tam || 20) * 0.36 + (apertado ? 2 : 0), o.tam || 20, off ? '#6a6e84' : o.cor || (o.sel ? AMARELO : '#fff'), 'center', !claro);
   // área de toque maior que o desenho (6 px lógicos nas laterais, 8 em cima e embaixo); o visual não muda
-  const alvo = { x: x - 6, y: y - 8, w: w + 12, h: h + 16, dx: x, dy: y, dw: w, dh: h, bt: true, acao: () => { if (off) { Som.tocar('erro'); if (o.aoDesligado) o.aoDesligado(); return; } Som.tocar('menu'); acao(); } };
+  const alvo = { x: x0 - 6, y: y0 - 8, w: w + 12, h: h + 16, dx: x0, dy: y0, dw: w, dh: h, bt: true, acao: () => { if (off) { Som.tocar('erro'); if (o.aoDesligado) o.aoDesligado(); return; } Som.tocar('menu'); acao(); } };
   separarAlvo(alvo);
   botoes.push(alvo);
 }
@@ -873,7 +925,7 @@ function separarAlvo(a) {
   }
 }
 function titulo(g, s, y, q, tam = 70) {
-  g.font = `900 ${tam}px ${FONTE}`; g.textAlign = 'center';
+  tam = Math.round(tam * 0.72); g.font = `${tam}px ${FONTE_ARCADE}`; g.textAlign = 'center';
   g.fillStyle = 'rgba(255,80,60,.35)'; for (let i = 4; i >= 1; i--) g.fillText(s, W / 2 + i * 2, y + i * 2);
   const w = g.measureText(s).width, d = (q % 240) / 240 * 300, gr = g.createLinearGradient(W / 2 - w / 2 + d - 300, 0, W / 2 - w / 2 + d + 300, 0);
   gr.addColorStop(0, '#ffe678'); gr.addColorStop(0.5, '#ff6e46'); gr.addColorStop(1, '#ffe678');
@@ -884,6 +936,42 @@ function moedas(g, x, y, c, d, tam = 16, al = 'left') {
   const s = `¢ ${fmt(c)}`, s2 = `💎 ${d}`;
   if (al === 'right') { texto(g, s2, x, y, tam, ROSA, 'right'); texto(g, s, x - largura(g, s2, tam) - 16, y, tam, AMARELO, 'right'); }
   else { texto(g, s, x, y, tam, AMARELO); texto(g, s2, x + largura(g, s, tam) + 14, y, tam, ROSA); }
+}
+
+/** Barra de metal do HUD no estilo arcade: bisel, rebites e linha de luz. */
+let _barraHud = null;
+function barraHud(g) {
+  if (!_barraHud || _barraHud.width !== W) {
+    const c = document.createElement('canvas'); c.width = W; c.height = 62; const b = c.getContext('2d');
+    const gr = b.createLinearGradient(0, 0, 0, 58); gr.addColorStop(0, '#2c3350'); gr.addColorStop(0.5, '#171b2e'); gr.addColorStop(1, '#0c0e1c');
+    b.fillStyle = gr; b.fillRect(0, 0, W, 58);
+    b.fillStyle = '#4a5478'; b.fillRect(0, 0, W, 2); b.fillStyle = '#05060e'; b.fillRect(0, 56, W, 2);
+    b.fillStyle = '#6edcff'; b.fillRect(0, 58, W, 2); b.fillStyle = 'rgba(110,220,255,.25)'; b.fillRect(0, 60, W, 2);
+    for (let x = 6; x < W; x += 64) { b.fillStyle = '#5a6488'; b.fillRect(x, 5, 2, 2); b.fillRect(x, 50, 2, 2); b.fillStyle = '#0a0c18'; b.fillRect(x + 1, 6, 2, 2); b.fillRect(x + 1, 51, 2, 2); }
+    _barraHud = c;
+  }
+  g.drawImage(_barraHud, 0, 0);
+}
+/** Baia do hangar: fundo escuro, holofote, piso em grade e linha de varredura holográfica. */
+function baia(g, x, y, w, h, q, cor) {
+  g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+  g.fillStyle = '#070912'; g.fillRect(x, y, w, h);
+  const cx = x + w / 2, rg = g.createRadialGradient(cx, y + h * 0.55, 10, cx, y + h * 0.55, w * 0.55);
+  rg.addColorStop(0, rgba(cor, 0.28)); rg.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = rg; g.fillRect(x, y, w, h);
+  g.fillStyle = 'rgba(255,255,255,.05)'; g.beginPath(); g.moveTo(cx - 30, y); g.lineTo(cx + 30, y); g.lineTo(cx + w * 0.35, y + h); g.lineTo(cx - w * 0.35, y + h); g.fill();   // facho do holofote
+  const piso = y + h * 0.78;
+  g.fillStyle = 'rgba(110,220,255,.22)';
+  for (let k = 0; k < 5; k++) g.fillRect(x, Math.round(piso + k * k * 3), w, 1);
+  for (let k = -8; k <= 8; k++) { g.beginPath(); g.moveTo(cx + k * 18, piso); g.lineTo(cx + k * 60, y + h); g.strokeStyle = 'rgba(110,220,255,.16)'; g.lineWidth = 1; g.stroke(); }
+  const sy = y + ((q * 1.2) % (h + 40)) - 20; g.fillStyle = 'rgba(110,220,255,.10)'; g.fillRect(x, sy, w, 3); g.fillStyle = 'rgba(110,220,255,.05)'; g.fillRect(x, sy - 8, w, 8);
+  g.fillStyle = '#ffd24a'; for (let i = 0; i < w; i += 16) g.fillRect(x + i, y + h - 4, 8, 4); g.fillStyle = '#1a1610'; for (let i = 8; i < w; i += 16) g.fillRect(x + i, y + h - 4, 8, 4);
+  g.restore();
+}
+/** Linhas de TV antiga por cima de tudo (só no visual completo). */
+let _scan = null;
+function linhasTv(g) {
+  if (!_scan) { const c = document.createElement('canvas'); c.width = 4; c.height = 3; const b = c.getContext('2d'); b.fillStyle = 'rgba(0,0,0,.16)'; b.fillRect(0, 2, 4, 1); _scan = g.createPattern(c, 'repeat'); }
+  g.fillStyle = _scan; g.fillRect(0, 0, W, H);
 }
 
 // ============================================================ o jogo
@@ -897,7 +985,7 @@ const TUTORIAL = [
 
 const IMG_RETR = new Image(); IMG_RETR.src = 'assets/retratos.png';   // 4 expressões x 12 personagens, 128 px cada
 const IMG_LOGO = new Image(); IMG_LOGO.src = 'assets/logo-hangar.png'; // logo Hangar Estelar (símbolo + nome), 960x300
-function retrato(g, id, ex, x, y, tam) { const el = ELENCO[id]; if (el && IMG_RETR.complete && IMG_RETR.naturalWidth) g.drawImage(IMG_RETR, ex * 128, el.l * 128, 128, 128, x, y, tam, tam); }
+function retrato(g, id, ex, x, y, tam) { const el = ELENCO[id]; if (id === 'fome') return desenharCentro(g, Arte.ampliar(Arte.chefe('ULTHAR', 3), 1.3), x + tam / 2, y + tam * 0.6); if (el && IMG_RETR.complete && IMG_RETR.naturalWidth) g.drawImage(IMG_RETR, ex * 128, el.l * 128, 128, 128, x, y, tam, tam); }
 function linhasQuebradas(g, s, w, tam, peso = 600) {
   const out = []; let l = '';
   for (const p of s.split(' ')) { const t = l ? l + ' ' + p : p; if (largura(g, t, tam, peso) > w && l) { out.push(l); l = p; } else l = t; }
@@ -918,12 +1006,13 @@ class Jogo {
     this.desafioStatus = 0; this.maxComboFase = 0; this.asteroidesFase = 0; this.danoNaFase = false; this.bombaNaFase = false;
     this.resumo = []; this.faseRecorde = '1'; this.venceu = false; this.chefe = null; this.chefeMorrendo = 0;
     this.creditosRun = 0; this.cristaisRun = 0; this.ganhoFinal = null; this.tutorial = null; this.estatEspeciais = 0;
+    this.teste = { inv: false, chefe: false, bonus: false };   // ferramentas de teste: só funcionam com o código liberado
   }
-  emPartida() { return ['INTRO_FASE', 'JOGANDO', 'ALERTA_CHEFE', 'CHEFE', 'FASE_CONCLUIDA', 'MORRENDO', 'CONTINUAR'].includes(this.estado); }
+  emPartida() { return ['INTRO_FASE', 'JOGANDO', 'ALERTA_CHEFE', 'CHEFE', 'FASE_CONCLUIDA', 'MORRENDO', 'CONTINUAR', 'PORTA'].includes(this.estado); }
   trocar(e) {
     this.estado = e; this.timer = 0; Input.apertou.clear();
     if (!this.emPartida()) this.fundo.hiper = 0;
-    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES', 'DIARIA', 'HIST'].includes(e)) Som.tocarMusica('musica_menu');
+    if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES', 'DIARIA', 'HIST', 'CAMARAS'].includes(e)) { Som.tocarMusica('musica_menu'); this.fundo.estrutura(e === 'HANGAR' ? '#ffd24a' : e === 'CAMARAS' ? '#c08cff' : null); }
   }
   pausar() { if (this.estado !== 'MORRENDO') { this.pausado = true; this.opcaoPausa = 0; Input.soltarTudo(); } }
 
@@ -947,6 +1036,10 @@ class Jogo {
         break;
       case 'VITORIA': this.atualizarVitoria(); break;
       case 'CENA': this.atualizarCena(); break;
+      case 'TESTE': this.fundo.update(); if (Input.ap('Escape', 'Backspace')) this.trocar('MENU'); break;
+      case 'ESCOLHA': this.fundo.update(); if (this.timer < 45) break; if (Input.ap('Digit1', 'ArrowLeft')) this.escolher('destruir'); else if (Input.ap('Digit2', 'ArrowRight')) this.escolher('libertar'); break;
+      case 'CAMARAS': this.fundo.update(); this.efeitos.update(); if (Input.ap('Escape', 'Backspace')) this.trocar('MAPA'); for (let k = 1; k <= 9; k++) if (Input.ap('Digit' + k)) this.iniciarCamara(k - 1); break;
+      case 'TESOURO': this.fundo.update(); this.efeitos.update(); if (this.tesouro && this.tesouro.aberto >= 0 && Input.ap('Enter')) { this.resCam = { ok: true, nome: this.tesouro.c.nome }; this.tesouro = null; this.trocar('CAMARAS'); } else if (Input.ap('Digit1')) this.abrirBau(0); else if (Input.ap('Digit2')) this.abrirBau(1); else if (Input.ap('Digit3')) this.abrirBau(2); break;
       case 'HIST': this.fundo.update(); this.efeitos.update(); this.teclasHist(); break;
       case 'CONTINUAR': this.fundo.update(); this.efeitos.update(); if (Input.ap('Enter')) this.continuar(); else if (Input.ap('Escape')) this.finalizarPartida(); break;
       default: this.atualizarPartida();
@@ -973,6 +1066,7 @@ class Jogo {
   }
   acaoMenu(i) { this.opcaoMenu = i; this.trocar(['HANGAR', 'CONFIG', 'COMO_JOGAR', 'RECORDES'][i]); }
   teclasHangar() {
+    if (this.zoomNave) { if (Input.ap('Escape', 'Backspace', 'Enter', 'Space')) this.zoomNave = false; return; }
     const n = NAVES.length;
     if (Input.ap('ArrowLeft', 'KeyA')) { this.naveHangar = (this.naveHangar + n - 1) % n; Som.tocar('menu'); }
     if (Input.ap('ArrowRight', 'KeyD')) { this.naveHangar = (this.naveHangar + 1) % n; Som.tocar('menu'); }
@@ -982,17 +1076,17 @@ class Jogo {
   decolar() {
     const n = NAVES[this.naveHangar];
     if (!Dados.dono(n.id)) { Som.tocar('erro'); this.aviso('Compre esta nave primeiro', [255, 120, 120]); return; }
-    Dados.prog.naveAtual = n.id; Dados.salvar(); this.naveEscolhida = n; this.noMapa = Math.max(1, ...[...Array(10).keys()].map(i => i + 1).filter(k => Dados.liberada(k))); this.trocar('MAPA');
+    Dados.prog.naveAtual = n.id; Dados.salvar(); this.naveEscolhida = n; this.noMapa = Math.max(1, ...[...Array(N_FASES).keys()].map(i => i + 1).filter(k => Dados.liberada(k))); this.trocar('MAPA');
   }
   teclasMapa() {
     if (Input.ap('ArrowLeft', 'KeyA')) this.noMapa = Math.max(1, this.noMapa - 1);
-    if (Input.ap('ArrowRight', 'KeyD')) this.noMapa = Math.min(10, this.noMapa + 1);
+    if (Input.ap('ArrowRight', 'KeyD')) this.noMapa = Math.min(N_FASES, this.noMapa + 1);
     if (Input.ap('ArrowUp', 'KeyW')) this.noMapa = Math.max(1, this.noMapa - 5);
-    if (Input.ap('ArrowDown', 'KeyS')) this.noMapa = Math.min(10, this.noMapa + 5);
+    if (Input.ap('ArrowDown', 'KeyS')) this.noMapa = Math.min(N_FASES, this.noMapa + 5);
     if (Input.ap('Escape', 'Backspace')) this.trocar('HANGAR');
     if (Input.ap('Enter', 'Space') && Dados.liberada(this.noMapa)) this.iniciarDoMapa(this.noMapa);
   }
-  iniciarDoMapa(n, chefe = false) { telaCheia(); const ir = () => this.novaPartida(this.naveEscolhida || this.player.tipo, n, chefe); if (chefe) ir(); else this.comCena(n, 'a', ir); }
+  iniciarDoMapa(n, chefe = false) { telaCheia(); this.camara = null; if (this.teste && this.teste.chefe) chefe = true; const ir = () => this.novaPartida(this.naveEscolhida || this.player.tipo, n, chefe); if (chefe) ir(); else this.comCena(n, 'a', ir); }
   atualizarPausa() {
     if (Input.ap('ArrowUp', 'KeyW')) this.opcaoPausa = (this.opcaoPausa + 2) % 3;
     if (Input.ap('ArrowDown', 'KeyS')) this.opcaoPausa = (this.opcaoPausa + 1) % 3;
@@ -1001,6 +1095,8 @@ class Jogo {
   }
   acaoPausa(i) {
     this.pausado = false;
+    if (this.camara && i === 1) { const c = this.camara; this.camara = Object.assign({}, c, { sala: 1, risco: false, sorte: 0, meta: 13 }); this.novaPartida(this.player.tipo, this.nodoInicio); this.desafioStatus = 2; return; }
+    if (this.camara && i > 0) { this.guardarGanhos(); this.resCam = { ok: false, nome: this.camara.nome, sala: this.camara.sala }; this.camara = null; return this.trocar('CAMARAS'); }
     if (i === 1) this.novaPartida(this.player.tipo, this.nodoInicio);
     else if (i === 2) { this.guardarGanhos(); this.trocar('HANGAR'); }
   }
@@ -1014,22 +1110,25 @@ class Jogo {
   }
 
   novaPartida(tipo, nodo = 1, chefe = false) {
-    this.player = new Player(tipo); this.player.vidas += dm().vidas;
+    this.player = new Player(tipo); this.player.vidas += dm().vidas; this.aplicarEquip(); this.poderCd = 0; this.zerou = false;
     this.tiros = []; this.inimigos = []; this.novos = []; this.itens = []; this.efeitos.limpar(); this.filaAvisos = []; this.avisoTimer = 0;
     Object.assign(this, { pontos: 0, combo: 0, comboTimer: 0, maiorCombo: 0, abatesTotal: 0, acertos: 0, ciclo: Math.floor((nodo - 1) / 5) + 1, faseIdx: (nodo - 1) % 5, venceu: false, nodoInicio: nodo, irParaChefe: chefe, podeChefe: false,
       posRecorde: -1, pausado: false, faseRecorde: '1', creditosRun: 0, cristaisRun: 0, ganhoFinal: null, estatEspeciais: 0, continuou: false });
-    this.tutorial = (Dados.prog.tutorial || nodo > 1 || chefe) ? null : { passo: 0, t: 0 };
+    this.tutorial = (Dados.prog.tutorial || nodo > 1 || chefe || this.camara) ? null : { passo: 0, t: 0 };
     this.lento = 0; Som.velocidadeMusica(1);
     this.iniciarFase();
   }
   iniciarFase() {
     this.fase = FASES[this.faseIdx]; this.fundo.definir(this.fase); this.chefe = null;
-    Object.assign(this, { abatesFase: 0, desafioStatus: 0, maxComboFase: 0, asteroidesFase: 0, danoNaFase: false, bombaNaFase: false, bonusAplicado: false, chefeMorrendo: 0, spawn: 90, chegouChefe: false });
-    if (this.irParaChefe) { this.abatesFase = this.fase.meta; this.irParaChefe = false; }
+    const nodoE = this.nodoAtual(); this.fundo.estrutura(this.camara ? this.camara.cor : [5, 10, 12, 15].includes(nodoE) ? ['#ff5a5a', '#ff5a5a', '#ffd24a', '#c08cff'][[5, 10, 12, 15].indexOf(nodoE)] : null);
+    Object.assign(this, { abatesFase: 0, desafioStatus: 0, maxComboFase: 0, asteroidesFase: 0, danoNaFase: false, bombaNaFase: false, bonusAplicado: false, chefeMorrendo: 0, spawn: 90, chegouChefe: false, chamadoFase: false, aliados: [], toast: null });
+    if (this.irParaChefe) { this.abatesFase = this.meta(); this.irParaChefe = false; }
     Som.tocarMusica('musica_fase' + this.fase.n);
     this.trocar('INTRO_FASE');
   }
-  dif() { return this.fase.vel * (1 + (this.ciclo - 1) * 0.25) * dm().vel; }
+  dif() { return this.fase.vel * (1 + (this.ciclo - 1) * 0.25) * dm().vel * (this.camara && this.camara.risco ? 1.15 : 1); }
+  /** Inimigos até o chefe: cada fase do mapa fica mais longa (fase 1: 35 · fase 15: cerca de 100). Câmaras têm meta própria. */
+  meta() { return this.camara ? this.camara.meta : Math.round(this.fase.meta * (1.4 + 0.06 * (Math.min(this.nodoAtual(), N_FASES) - 1))); }
 
   atualizarPartida() {
     const t = this.timer;
@@ -1037,18 +1136,23 @@ class Jogo {
     this.fundo.update();
     if (Input.ap('KeyP', 'Escape') && this.estado !== 'MORRENDO') return this.pausar();
     const podeAtirar = ['JOGANDO', 'ALERTA_CHEFE', 'CHEFE'].includes(this.estado);
+    if (this.poderCd > 0) this.poderCd--;
+    if (podeAtirar && Input.ap('KeyV', 'KeyQ')) this.usarPoder();
+    if (Input.ap('KeyE', 'KeyC')) this.trocarArma();
     this.player.update(this, podeAtirar);
     if (this.comboTimer > 0 && --this.comboTimer === 0) this.combo = 0;
 
     switch (this.estado) {
-      case 'INTRO_FASE': if (t === 25) this.efeitos.fx('teleporte', this.player.x, this.player.y + 20, 0.9); if (t > (this.tutorial ? 120 : 200)) this.trocar('JOGANDO'); break;
+      case 'INTRO_FASE': this.chegadaHiper(t); if (t > (this.tutorial ? 120 : 200)) this.trocar('JOGANDO'); break;
       case 'JOGANDO':
         if (this.tutorial) this.atualizarTutorial();
-        else if (this.abatesFase < this.fase.meta) this.gerarInimigos();
+        else if (this.abatesFase < this.meta()) this.gerarInimigos();
+        else if (this.camara && this.camara.sala < 5) { if (!this.inimigos.length || t > 600) { for (const i of this.inimigos) i.vivo = false; this.inimigos = []; this.tiros = this.tiros.filter(x => !x.inimigo); this.trocar('PORTA'); } }
         else if (!this.inimigos.length || t > 400) { this.trocar('ALERTA_CHEFE'); Som.tocar('alerta'); vibrar([80, 60, 80]); }
         break;
+      case 'PORTA': if (t > 30) { if (Input.ap('Digit1')) this.escolherPorta(false); else if (Input.ap('Digit2')) this.escolherPorta(true); } break;
       case 'ALERTA_CHEFE':
-        if (t > 170) { this.chefe = new Chefe(this.fase.chefe, this.dif(), (1 + (this.ciclo - 1) * 0.6) * dm().vida); this.chegouChefe = true; Som.tocarMusica('musica_chefe'); this.trocar('CHEFE'); }
+        if (t > 170) { this.chefe = this.criarChefe(); this.chegouChefe = true; Som.tocarMusica('musica_chefe'); this.trocar('CHEFE'); }
         break;
       case 'CHEFE': {
         const c = this.chefe;
@@ -1068,6 +1172,7 @@ class Jogo {
         if (t > 300 || (t > 60 && (Input.ap('Enter') || this.toqueContinuar))) {
           this.toqueContinuar = false;
           this.comCena(this.nodoAtual(), 'd', () => {
+            if (this.nodoAtual() === N_FASES && !this.zerou) return this.mostrarFinal();
             if (this.faseIdx === FASES.length - 1 && this.ciclo === 1 && !this.venceu) { this.venceu = true; this.itens = []; this.tiros = []; this.trocar('VITORIA'); }
             else this.avancarFase();
           });
@@ -1081,6 +1186,7 @@ class Jogo {
     if (inimigosAndam) for (const x of this.inimigos) x.update(this);
     const ima = this.player.efeitos.IMA > 0 ? 3000 : this.player.at.ima;
     for (const x of this.itens) x.update(this.player, ima);
+    this.atualizarAliados();
     this.escudeiros();
     this.colisoes();
     this.efeitos.update();
@@ -1114,11 +1220,12 @@ class Jogo {
   }
   encerrarVitoria() { this.faseRecorde = 'Venceu!'; this.finalizarPartida(); }
   avancarFase() {
-    if (++this.faseIdx >= FASES.length) { this.faseIdx = 0; this.ciclo++; this.aviso(`CICLO ${this.ciclo} — OS INIMIGOS ESTÃO MAIS FORTES!`, [255, 160, 80]); }
+    if (++this.faseIdx >= FASES.length) { this.faseIdx = 0; this.ciclo++; this.aviso(this.nodoAtual() > N_FASES ? `CICLO ${this.ciclo} — OS INIMIGOS ESTÃO MAIS FORTES!` : NOMES_SETOR[this.ciclo - 1].toUpperCase(), [255, 160, 80]); }
     this.tiros = this.tiros.filter(t => !t.inimigo);
     this.comCena(this.nodoAtual(), 'a', () => this.iniciarFase());
   }
   finalizarPartida() {
+    if (this.camara) { this.guardarGanhos(); this.resCam = { ok: false, nome: this.camara.nome, sala: this.camara.sala }; this.camara = null; return this.trocar('CAMARAS'); }
     if (this.faseRecorde !== 'Venceu!') this.faseRecorde = this.ciclo === 1 ? String(this.fase.n) : `${this.ciclo}-${this.fase.n}`;
     this.guardarGanhos(true);
     if (Dados.entraNoRanking(this.pontos)) { this.trocar('NOME'); abrirNome(this.pontos); }
@@ -1132,7 +1239,7 @@ class Jogo {
 
   gerarInimigos() {
     if (--this.spawn > 0) return;
-    const prog = this.abatesFase / this.fase.meta;
+    const prog = Math.min(1, this.abatesFase / this.meta());
     this.spawn = this.fase.intervalo * (1 - 0.3 * prog) / (1 + (this.ciclo - 1) * 0.2) * dm().intervalo;
     if (this.inimigos.length >= 16) return;
     let tipo = sortearTipo(this.fase);
@@ -1320,6 +1427,7 @@ class Jogo {
       for (const s of [-1, 1]) this.adicionarInimigo(new Inimigo(T.FRAGMENTO, i.x, i.y, this.dif(), i.vx * 0.8 - 0.5, s * rnd(1, 2)));
     }
     if (Math.random() < i.tipo.moeda) { const n = i.tipo.id === 'TANQUE' ? 5 : 1; for (let k = 0; k < n; k++) this.itens.push(new Item(MOEDA, i.x, i.y, 5)); }
+    if (this.estado === 'JOGANDO' && !this.tutorial && !this.aliados.length && !this.itens.some(u => u.tipo === CHAMADO) && (Math.random() < (this.teste && this.teste.bonus ? 0.15 : 0.012) || (!this.chamadoFase && this.abatesFase >= Math.floor(this.meta() / 2)))) { this.chamadoFase = true; this.itens.push(new Item(CHAMADO, i.x, i.y)); }
     if (Math.random() < i.tipo.drop || this.abatesTotal % 15 === 0) {
       const garantido = this.abatesTotal % 45 === 15 ? POWERUPS[0] : this.abatesTotal % 45 === 30 ? sortearArma() : null;
       this.itens.push(new Item(garantido || sortearPowerUp(), i.x, i.y));
@@ -1329,6 +1437,7 @@ class Jogo {
   derrotarChefe() {
     const c = this.chefe, bonus = 5000 * this.fase.n * this.ciclo;
     this.ev('chefes');
+    if (!this.camara && Hist.ganharChave()) this.aviso('+1 CHAVE DE CÂMARA 🗝', [255, 214, 80]);
     this.pontos += bonus;
     this.efeitos.texto(c.x, c.y - c.h / 2, '+' + fmt(bonus), [255, 220, 90], 26);
     for (const t of this.tiros) if (t.inimigo) t.vivo = false;
@@ -1339,8 +1448,10 @@ class Jogo {
     this.chefeMorrendo = 0;
     if (this.fase.desafio.id === 'CHEFE_RAPIDO' && this.desafioStatus === 0) this.concluirDesafio();
     if (this.fase.n === 2 && Dados.liberar('TITA')) this.aviso('NOVA NAVE LIBERADA: TITÃ!', [120, 255, 120]);
+    if (!this.camara && this.nodoAtual() === 12 && Dados.liberar('LANCA')) this.aviso('NOVA NAVE LIBERADA: LANÇA REACENDER!', [255, 207, 90]);
   }
   concluirFase() {
+    if (this.camara) return this.fimCamara();
     if (this.bonusAplicado) return;
     this.bonusAplicado = true;
     const d = this.fase.desafio;
@@ -1348,7 +1459,7 @@ class Jogo {
       if ((d.id === 'SEM_DANO' && !this.danoNaFase) || (d.id === 'SEM_BOMBA' && !this.bombaNaFase)) this.concluirDesafio(); else this.falharDesafio();
     }
     const nodo = (this.ciclo - 1) * 5 + this.fase.n, est = 1 + (this.desafioStatus === 1 ? 1 : 0) + (this.danoNaFase ? 0 : 1);
-    const novoRec = nodo <= 10 ? Dados.registrarEstrelas(nodo, est) : false;
+    const novoRec = nodo <= N_FASES ? Dados.registrarEstrelas(nodo, est) : false;
     const bd = 2500 * this.fase.n * this.ciclo, bv = 1000 * this.player.vidas * this.ciclo;
     this.resumo = [['Chefe derrotado', '+' + fmt(5000 * this.fase.n * this.ciclo)]];
     if (this.desafioStatus === 1) { this.pontos += bd; this.resumo.push(['Desafio: ' + d.descricao, '+' + fmt(bd)]); }
@@ -1374,15 +1485,16 @@ class Jogo {
   falharDesafio() { if (this.desafioStatus !== 0) return; this.desafioStatus = -1; this.aviso('Desafio falhou', [255, 120, 120]); }
   levarDano() {
     const p = this.player;
+    if (this.teste && this.teste.inv) return;
     if (p.escudo) { p.escudo = false; p.timerEscudo = 0; p.invencivel = 90; this.efeitos.anel(p.x, p.y, [100, 200, 255], 80); Som.tocar('acerto'); this.tremer(6); vibrar(30); return; }
-    p.vidas--; p.arma = Math.max(1, p.arma - 1); p.invencivel = 150; this.danoNaFase = true; this.bordaDano = 40;
+    p.vidas--; p.arma = Math.max(1, p.arma - 1); p.invencivel = 150 + (p.invExtra || 0); this.danoNaFase = true; this.bordaDano = 40;
     if (this.fase.desafio.id === 'SEM_DANO') this.falharDesafio();
     this.combo = 0; this.tremer(18); Som.tocar('dano'); vibrar(120); this.efeitos.explosao(p.x, p.y, 40);
     if (p.vidas <= 0) { p.vivo = false; this.efeitos.explosao(p.x, p.y, 150); this.flash = 15; this.tremer(30); Som.tocar('bomba'); vibrar([100, 50, 250]); this.estadoAntes = this.estado; this.trocar('MORRENDO'); }
   }
   coletar(u) {
     const p = this.player;
-    if (u.tipo === MOEDA) { this.creditosRun += u.valor; this.ev('moedas', u.valor); Som.tocar('moeda'); return; }
+    if (u.tipo === MOEDA) { const v = Math.round(u.valor * (p.fortuna || 1)); this.creditosRun += v; this.ev('moedas', v); Som.tocar('moeda'); return; }
     if (u.tipo === CRISTAL) { this.cristaisRun += u.valor; Som.tocar('powerup'); this.efeitos.texto(p.x, p.y - 32, '+1 💎', CRISTAL.cor, 16); return; }
     const t = u.tipo; this.ev('itens'); Som.tocar('powerup'); this.efeitos.fx('coleta', p.x, p.y, 0.9);
     let txt = t.nome;
@@ -1390,7 +1502,9 @@ class Jogo {
       case 'ARMA': if (p.arma < 5) p.arma++; else { this.pontos += 1000; txt = 'ARMA MÁXIMA +1000'; } break;
       case 'TIPO_ARMA':
         if (p.tipoArma === t.arma) { if (p.arma < 5) { p.arma++; txt = `${t.nome} NÍVEL ${p.arma}`; } else { this.pontos += 1000; txt = `${t.nome} MÁXIMO +1000`; } }
-        else { p.tipoArma = t.arma; txt = `${t.nome} NÍVEL ${p.arma}`; }
+        else if (p.reserva && p.reserva.tipo === t.arma) { p.reserva.nivel = Math.min(5, p.reserva.nivel + 1); txt = `RESERVA: ${t.nome} NÍVEL ${p.reserva.nivel}`; }
+        else if (!p.reserva && p.tipoArma !== 'PADRAO') { p.reserva = { tipo: p.tipoArma, nivel: p.arma }; txt = `${ARMAS[p.tipoArma].nome.toUpperCase()} GUARDADA · ${t.nome}`; p.tipoArma = t.arma; }
+        else { p.tipoArma = t.arma; txt = `${t.nome} NÍVEL ${p.arma}`; }   // com reserva cheia, a nova substitui a arma em uso
         break;
       case 'RAPIDO': p.tiroRapido = 480; break;
       case 'BOLHA': case 'ESTRELA': case 'CANHAO': case 'IMA': p.efeitos[t.id] = t.tempo; break;
@@ -1402,6 +1516,7 @@ class Jogo {
       case 'ESCUDO': p.escudo = true; break;
       case 'ENERGIA': p.ganharEnergia(50); break;
       case 'BOMBA': p.bombas = Math.min(5, p.bombas + 1); break;
+      case 'CHAMADO': txt = this.chamarAliado(); break;
       case 'VIDA': p.vidas = Math.min(9, p.vidas + 1); break;
     }
     this.efeitos.texto(p.x, p.y - 32, txt, t.cor, 15); this.efeitos.anel(p.x, p.y, t.cor, 50);
@@ -1447,6 +1562,10 @@ class Jogo {
       case 'RECORDES': this.telaRecordes(g); break;
       case 'DIARIA': this.telaDiaria(g); this.efeitos.desenhar(g); break;
       case 'CENA': this.telaCena(g); break;
+      case 'TESTE': this.telaTeste(g); break;
+      case 'ESCOLHA': this.telaEscolha(g); break;
+      case 'CAMARAS': this.telaCamaras(g); this.efeitos.desenhar(g); break;
+      case 'TESOURO': this.telaTesouro(g); this.efeitos.desenhar(g); break;
       case 'HIST': this.telaHist(g); this.efeitos.desenhar(g); break;
       case 'NOME': this.efeitos.desenhar(g); break;
       case 'GAME_OVER': this.efeitos.desenhar(g); this.telaGameOver(g); break;
@@ -1456,18 +1575,22 @@ class Jogo {
       const t = this.avisoTimer, a = Math.min(1, t / 25), s = t > 100 ? 1 + (t - 100) * 0.04 : 1;
       g.globalAlpha = a; texto(g, this.avisoTxt, W / 2, 124, Math.round(24 * s), rgba(this.avisoCor, 1), 'center'); g.globalAlpha = 1;
     }
+    if (pressionado && !pressionado.bt && performance.now() < pressionado.ate) { g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(pressionado.x, pressionado.y, pressionado.w, pressionado.h); }   // toque em cards e áreas
+    if (Dados.prog.codigo && window.__ultimoErro) texto(g, '⚠ ' + window.__ultimoErro.slice(0, 90), 10, H - 34, 14, '#ff6a6a', 'left', true, 600);
+    if (Config.visual !== 'leve') linhasTv(g);
   }
   desenharPartida(g) {
     let sx = 0, sy = 0;
     if (this.tremor > 0.5 && !this.pausado) { sx = (Math.random() - 0.5) * this.tremor; sy = (Math.random() - 0.5) * this.tremor; }
     g.save(); g.translate(Math.round(sx), Math.round(sy));
     for (const u of this.itens) u.desenhar(g);
-    for (const i of this.inimigos) i.desenhar(g);
+    for (const i of this.inimigos) try { i.desenhar(g); } catch (e) { erroJogo(e); }
     const esc = this.inimigos.filter(i => i.tipo.id === 'ESCUDEIRO');
     for (const e of esc) for (const i of this.inimigos) if (i.protegido && hyp(e.x - i.x, e.y - i.y) < 150) { g.strokeStyle = 'rgba(110,190,255,.35)'; g.lineWidth = 1; g.beginPath(); g.moveTo(e.x, e.y); g.lineTo(i.x, i.y); g.stroke(); }
     if (this.chefe && (this.chefe.vivo || this.chefeMorrendo < 120)) this.chefe.desenhar(g);
-    for (const t of this.tiros) if (!t.inimigo) t.desenhar(g);
-    this.player.desenhar(g);
+    for (const t of this.tiros) if (!t.inimigo) try { t.desenhar(g); } catch (e) { erroJogo(e); t.vivo = false; }
+    for (const a of this.aliados || []) try { this.desenharAliado(g, a); } catch (e) { erroJogo(e); }
+    try { this.player.desenhar(g); } catch (e) { erroJogo(e); }
     for (const t of this.tiros) if (t.inimigo) t.desenhar(g);
     this.efeitos.desenhar(g);
     g.restore();
@@ -1482,18 +1605,20 @@ class Jogo {
     if (this.estado === 'FASE_CONCLUIDA') this.telaFaseConcluida(g);
     if (this.estado === 'VITORIA') this.telaVitoria(g);
     if (this.tutorial && this.estado === 'JOGANDO') this.telaTutorial(g);
+    if (this.toast && this.toast.t > 0) this.telaToast(g);
     if (this.estado === 'CONTINUAR') this.telaContinuar(g);
+    if (this.estado === 'PORTA' && !this.pausado) this.telaPorta(g);
     if (this.pausado) this.telaPausa(g);
   }
 
   hud(g) {
     const p = this.player, q = this.quadro;
-    g.fillStyle = 'rgba(4,6,18,.78)'; g.fillRect(0, 0, W, 58);
-    g.fillStyle = 'rgba(120,150,255,.25)'; g.fillRect(0, 58, W, 1);
-    g.font = '800 28px ui-monospace, Menlo, Consolas, monospace'; g.textAlign = 'left';
+    barraHud(g);
+    g.font = `12px ${FONTE_ARCADE}`; g.textAlign = 'left'; g.fillStyle = '#7fe0ff'; g.fillText('SCORE', 12, 18);
+    g.font = `19px ${FONTE_ARCADE}`;
     const pts = String(this.pontos).padStart(8, '0');
-    g.fillStyle = 'rgba(0,0,0,.7)'; g.fillText(pts, 14, 40); g.fillStyle = AMARELO; g.fillText(pts, 12, 38);
-    let x = 12 + g.measureText(pts).width + 16;
+    g.fillStyle = 'rgba(0,0,0,.8)'; g.fillText(pts, 14, 44); g.fillStyle = AMARELO; g.fillText(pts, 12, 42);
+    let x = 12 + g.measureText(pts).width + 18;
     // vidas, bombas, arma e especial: ícones grandes em vez de rótulos pequenos
     const mini = Arte.nave(p.tipo.id, p.pecas, 0).img, vs = '×' + p.vidas, baixa = p.vidas <= 1;
     g.drawImage(mini, x, 17, 42, 22); texto(g, vs, x + 48, 40, 24, baixa && pisca(q, 12) ? '#ff5a5a' : '#fff'); x += 48 + largura(g, vs, 24) + 16;
@@ -1502,13 +1627,14 @@ class Jogo {
     const arma = ARMAS[p.tipoArma], corArma = p.tipoArma === 'PADRAO' ? AMARELO : rgba(arma.cor, 1);
     for (let i = 0; i < 5; i++) { g.fillStyle = i < p.arma ? corArma : '#3c3c50'; g.fillRect(x + i * 15, 17, 11, 24); }
     x += 5 * 15 + 12;
+    if (p.reserva) { const ra = ARMAS[p.reserva.tipo], rs = `⇄ ${ra.nome.toUpperCase()} ${p.reserva.nivel}`; texto(g, rs, x, 38, 17, rgba(ra.cor, 1), 'left', true); x += largura(g, rs, 17) + 14; }
     const pronto = p.energia >= 100;
     texto(g, '★', x, 40, 26, pronto ? '#fff' : rgba(p.tipo.cor, 1), 'left', false);
     barra(g, x + 30, 20, 84, 20, p.energia / 100, pronto ? (pisca(q, 8) ? '#fff' : rgba(p.tipo.cor, 1)) : rgba(p.tipo.cor, 0.55));
     const fx = W - 246;
-    texto(g, `FASE ${this.fase.n}${this.ciclo > 1 ? ' · C' + this.ciclo : ''}`, fx, 24, 16, CINZA);
+    texto(g, this.camara ? `SALA ${this.camara.sala}/5` : this.nodoAtual() <= N_FASES ? `FASE ${this.nodoAtual()}` : `FASE ${this.fase.n} · C${this.ciclo}`, fx, 24, 16, CINZA);
     if (this.estado === 'CHEFE' || this.estado === 'ALERTA_CHEFE') texto(g, 'CHEFE!', fx, 50, 24, '#ff5a5a');
-    else { barra(g, fx, 30, 168, 22, this.abatesFase / this.fase.meta, CIANO); texto(g, `${Math.min(this.abatesFase, this.fase.meta)} / ${this.fase.meta}`, fx + 84, 47, 16, '#fff', 'center'); }
+    else { barra(g, fx, 30, 168, 22, this.abatesFase / this.meta(), CIANO); texto(g, `${Math.min(this.abatesFase, this.meta())} / ${this.meta()}`, fx + 84, 47, 16, '#fff', 'center'); }
     caixa(g, W - 62, 6, 54, 46, 10, 'rgba(255,255,255,.08)', 'rgba(255,255,255,.3)', 1.5);
     g.fillStyle = '#fff'; g.fillRect(W - 45, 16, 6, 26); g.fillRect(W - 31, 16, 6, 26);
     botoes.push({ x: W - 70, y: 0, w: 70, h: 60, acao: () => this.pausar() });
@@ -1527,7 +1653,7 @@ class Jogo {
       barra(g, 48, y - 5, 70, 10, v / it.tempo, rgba(it.cor, v < 90 && pisca(this.quadro, 5) ? 0.4 : 1));
       texto(g, Math.ceil(v / 60) + 's', 124, y + 6, 17, '#fff');
     });
-    if (!this.tutorial) {
+    if (!this.tutorial && !this.camara) {
       const d = this.fase.desafio;
       let s = 'DESAFIO: ' + d.descricao;
       if (d.id === 'COMBO') s += `  (${Math.min(this.maxComboFase, d.meta)}/${d.meta})`;
@@ -1577,6 +1703,22 @@ class Jogo {
     caixa(g, bx + 18, by - br - 4, 30, 26, 10, tem ? '#ff4b46' : '#444', null);
     texto(g, String(p.bombas), bx + 33, by - br + 15, 18, '#fff', 'center', false);
     botoes.push({ x: bx - br - 8, y: by - br - 8, w: br * 2 + 16, h: br * 2 + 16, acao: () => { if (tem) p.querBomba = true; else vibrar(15); } });
+    if (p.reserva) {
+      const ra = ARMAS[p.reserva.tipo], tx = W - 318, ty = H - 62, tr = 34;
+      g.fillStyle = rgba(ra.cor, 0.25); g.beginPath(); g.arc(tx, ty, tr, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = rgba(ra.cor, 0.9); g.lineWidth = 3; g.stroke();
+      texto(g, '⇄', tx, ty - 2, 22, '#fff', 'center', false); texto(g, ra.nome.toUpperCase(), tx, ty + 20, 13, rgba(ra.cor, 1), 'center');
+      botoes.push({ x: tx - tr - 6, y: ty - tr - 6, w: tr * 2 + 12, h: tr * 2 + 12, acao: () => this.trocarArma() });
+    }
+    const eq = this.equipPoder;
+    if (eq) {
+      const qx = W - 196, qy = H - 178, qr = 38, pr = this.poderCd <= 0, it = ITENS_CAM[eq.id];
+      g.fillStyle = pr ? rgba([150, 110, 255], 0.32) : 'rgba(10,14,34,.55)'; g.beginPath(); g.arc(qx, qy, qr, 0, Math.PI * 2); g.fill();
+      g.strokeStyle = pr ? RARIDADES[eq.nv].cor : 'rgba(255,255,255,.2)'; g.lineWidth = 3; g.stroke();
+      if (!pr) { g.strokeStyle = RARIDADES[eq.nv].cor; g.beginPath(); g.arc(qx, qy, qr - 5, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * (1 - this.poderCd / (RECARGA_PODER[eq.nv] * 60))); g.stroke(); }
+      texto(g, it.ic, qx, qy + 10, 28, pr ? '#fff' : 'rgba(255,255,255,.4)', 'center', false);
+      botoes.push({ x: qx - qr - 6, y: qy - qr - 6, w: qr * 2 + 12, h: qr * 2 + 12, acao: () => this.usarPoder() });
+    }
     if (destaque === 2 || destaque === 3) {
       const [x, y, r] = destaque === 2 ? [ex, ey, er] : [bx, by, br], k = 1 + 0.12 * Math.sin(this.quadro * 0.2);
       g.strokeStyle = AMARELO; g.lineWidth = 3; g.beginPath(); g.arc(x, y, (r + 10) * k, 0, Math.PI * 2); g.stroke();
@@ -1598,17 +1740,27 @@ class Jogo {
   telaIntro(g) {
     const t = this.timer, fim = this.tutorial ? 120 : 200, a = t < 20 ? t / 20 : t > fim - 30 ? Math.max(0, (fim - t) / 30) : 1;
     g.globalAlpha = a;
-    texto(g, `FASE ${this.fase.n}${this.ciclo > 1 ? '  ·  CICLO ' + this.ciclo : ''}`, W / 2, 210, 42, AMARELO, 'center');
-    texto(g, this.fase.nome, W / 2, 250, 24, '#fff', 'center');
-    if (!this.tutorial) {
-      texto(g, `Destrua ${this.fase.meta} inimigos para enfrentar o chefe`, W / 2, 292, 15, '#c8d2f0', 'center', true, 600);
+    const nodo = this.nodoAtual();
+    if (this.camara) {
+      texto(g, `${this.camara.nome.toUpperCase()}`, W / 2, 210, 38, this.camara.cor, 'center');
+      texto(g, `Sala ${this.camara.sala} de 5`, W / 2, 250, 24, '#fff', 'center');
+      texto(g, `Destrua ${this.meta()} inimigos para abrir a próxima porta`, W / 2, 292, 15, '#c8d2f0', 'center', true, 600);
+    } else if (nodo <= N_FASES) {
+      texto(g, `FASE ${nodo}`, W / 2, 210, 42, AMARELO, 'center');
+      texto(g, NOMES_FASE[nodo - 1], W / 2, 250, 24, '#fff', 'center');
+    } else {
+      texto(g, `FASE ${this.fase.n}  ·  CICLO ${this.ciclo}`, W / 2, 210, 42, AMARELO, 'center');
+      texto(g, this.fase.nome, W / 2, 250, 24, '#fff', 'center');
+    }
+    if (!this.tutorial && !this.camara) {
+      texto(g, `Destrua ${this.meta()} inimigos para enfrentar o chefe`, W / 2, 292, 15, '#c8d2f0', 'center', true, 600);
       texto(g, 'Desafio bônus: ' + this.fase.desafio.descricao, W / 2, 320, 17, '#78ffaa', 'center');
     }
     g.globalAlpha = 1;
   }
   telaAlerta(g) {
     if (pisca(this.timer, 15)) { g.fillStyle = 'rgba(255,0,0,.16)'; g.fillRect(0, 0, W, H); texto(g, '⚠  ALERTA  ⚠', W / 2, 240, 42, '#ff4646', 'center'); }
-    texto(g, this.fase.chefe.nome.toUpperCase() + ' SE APROXIMA', W / 2, 284, 22, '#fff', 'center');
+    texto(g, this.nomeChefe().toUpperCase() + ' SE APROXIMA', W / 2, 284, 22, '#fff', 'center');
     texto(g, 'Destrua as peças do chefe para expor o núcleo', W / 2, 312, 14, CINZA, 'center', true, 600);
   }
   telaFaseConcluida(g) {
@@ -1630,8 +1782,8 @@ class Jogo {
   }
   telaVitoria(g) {
     g.fillStyle = 'rgba(0,0,0,.45)'; g.fillRect(0, 0, W, H);
-    titulo(g, 'VITÓRIA!', 165, this.quadro);
-    texto(g, 'Você derrotou o Imperador Zorg e salvou a galáxia!', W / 2, 215, 18, '#fff', 'center');
+    titulo(g, this.zerou ? 'CÉU ACESO!' : 'VITÓRIA!', 165, this.quadro);
+    texto(g, this.zerou ? 'Você derrotou Ulthar-Vey, a Fome, e reacendeu as estrelas!' : 'Você derrotou o Soberano Ul-Zarkoth! Mas a jornada continua no mapa.', W / 2, 215, 18, '#fff', 'center');
     texto(g, 'Pontuação: ' + fmt(this.pontos), W / 2, 258, 26, AMARELO, 'center');
     if (this.timer > 60) {
       botao(g, '♾  Continuar no Modo Infinito', W / 2, 330, 380, 54, () => this.avancarFase(), { cor: '#78ffaa', tam: 19 });
@@ -1652,7 +1804,7 @@ class Jogo {
   // ---------------------------------------------------------- telas de menu
   telaMenu(g) {
     const q = this.quadro, n = NAVES[this.naveHangar];
-    const nv = Arte.ampliar(Arte.nave(n.id, Dados.pecas(n.id), Math.floor(q / 4)).img, 2);
+    const nv = Arte.ampliar(Arte.nave(n.id, Dados.pecas(n.id), Math.floor(q / 4)).img, W < 900 ? 1.5 : 2);
     g.drawImage(nv, W * 0.08, 240 + Math.sin(q * 0.03) * 18);
     const ufo = Arte.inimigo('BASICO');
     for (let i = 0; i < 3; i++) desenharCentro(g, Arte.ampliar(ufo, 1.4), W * 0.84 + (i % 2) * 44, 220 + i * 62 + Math.sin(q * 0.04 + i) * 14);
@@ -1670,7 +1822,10 @@ class Jogo {
     const pend = Hist.pendentes();
     botao(g, pend ? `📖 Diário · ${pend}` : '📖 Diário', W - 110, H - 104, 190, 52, () => this.abrirHist(), { tam: 19, cor: pend ? AMARELO : undefined });
     if (!usouToque) texto(g, '↑ ↓ escolher · ENTER confirmar · M som', W / 2, 516, 15, CINZA, 'center', true, 600);
-    texto(g, 'v' + VERSAO, 14, H - 12, 15, '#787d96', 'left', true, 600);
+    const teste = !!Dados.prog.codigo;
+    texto(g, 'v' + VERSAO + (teste ? ' · TESTE' : ''), 14, H - 12, 15, teste ? '#ff9a6a' : '#787d96', 'left', true, 600);
+    if (teste) botao(g, '🧪 TESTE', 90, 34, 150, 46, () => this.trocar('TESTE'), { tam: 18, cor: '#ff9a6a', borda: '#ff9a6a' });
+    else botao(g, '🔑 Código', 90, 34, 150, 46, () => this.digitarCodigo(), { tam: 18 });
   }
 
   telaHangar(g) {
@@ -1680,15 +1835,20 @@ class Jogo {
     // --- nave
     const lw = Math.min(400, W * 0.44), lx = 14;
     painel(g, lx, 56, lw, 418);
-    const s = Arte.nave(nave.id, pc, Math.floor(this.quadro / 4)), big = Arte.ampliar(s.img, 3);
-    g.globalAlpha = dono ? 1 : 0.35;
-    g.drawImage(big, lx + lw / 2 - big.width / 2, 74 + Math.sin(this.quadro * 0.05) * 4);
+    if (this.zoomNave) return this.telaZoomNave(g, nave, pc, dono);
+    baia(g, lx + 4, 60, lw - 8, 136, this.quadro, nave.cor);
+    const s = Arte.nave(nave.id, pc, Math.floor(this.quadro / 5)), big = Arte.ampliar(s.img, lw < 380 ? 2.5 : 3), bx = Math.round(lx + lw / 2 - big.width / 2), by = Math.round(58 + Math.sin(this.quadro * 0.05) * 3);
+    g.globalAlpha = dono ? 1 : 0.4;
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.ellipse(lx + lw / 2, 186, big.width * 0.36, 5, 0, 0, Math.PI * 2); g.fill();   // sombra no piso
+    g.drawImage(big, bx, by);
     g.globalAlpha = 1;
-    botao(g, '‹', lx + 32, 128, 54, 76, () => { this.naveHangar = (this.naveHangar + NAVES.length - 1) % NAVES.length; }, { tam: 36 });
-    botao(g, '›', lx + lw - 32, 128, 54, 76, () => { this.naveHangar = (this.naveHangar + 1) % NAVES.length; }, { tam: 36 });
-    texto(g, nave.nome.toUpperCase(), lx + lw / 2, 212, 30, rgba(nave.cor, 1), 'center');
-    texto(g, nave.desc, lx + lw / 2, 236, 15, '#fff', 'center', true, 600);
-    NAVES.forEach((n, i) => { g.fillStyle = i === this.naveHangar ? '#fff' : Dados.dono(n.id) ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.15)'; g.fillRect(lx + lw / 2 - NAVES.length * 8 + i * 16, 246, 9, 5); });
+    botoes.push({ x: bx + 40, y: by, w: big.width - 80, h: big.height, acao: () => { this.zoomNave = true; Som.tocar('menu'); } });
+    botao(g, '🔍 Ver', lx + lw - 46, 170, 80, 46, () => { this.zoomNave = true; }, { tam: 16 });
+    botao(g, '‹', lx + 30, 214, 52, 44, () => { this.zoomNave = false; this.naveHangar = (this.naveHangar + NAVES.length - 1) % NAVES.length; }, { tam: 36 });
+    botao(g, '›', lx + lw - 30, 214, 52, 44, () => { this.naveHangar = (this.naveHangar + 1) % NAVES.length; }, { tam: 36 });
+    texto(g, nave.nome.toUpperCase(), lx + lw / 2, 222, largura(g, nave.nome.toUpperCase(), 28) > lw - 130 ? 22 : 28, rgba(nave.cor, 1), 'center');
+    texto(g, nave.desc, lx + lw / 2, 242, 15, '#fff', 'center', true, 600);
+    NAVES.forEach((n, i) => { g.fillStyle = i === this.naveHangar ? '#fff' : Dados.dono(n.id) ? 'rgba(255,255,255,.4)' : 'rgba(255,255,255,.15)'; g.fillRect(lx + lw / 2 - NAVES.length * 8 + i * 16, 250, 9, 4); });
     const vals = [['Velocidade', at.vel / 7], ['Resistência', at.vidas / 7], ['Poder de fogo', Math.min(1, at.dano * 60 / at.cadencia / 10 + (nave.perfurante || nave.encadeia ? 0.15 : 0))]];
     vals.forEach(([r, v], k) => { texto(g, r, lx + 18, 276 + k * 32, 15, CINZA); barra(g, lx + 18, 282 + k * 32, lw - 36, 11, v, rgba(nave.cor, 1)); });
     texto(g, 'ESPECIAL: ' + nave.especial, lx + 18, 384, 16, AMARELO);
@@ -1732,27 +1892,56 @@ class Jogo {
     this.efeitos.desenhar(g);
   }
 
+  /** Hangar: a nave bem grande, com cada peça apontada e o piloto dela na história. */
+  telaZoomNave(g, nave, pc, dono) {
+    g.fillStyle = 'rgba(4,6,16,.94)'; g.fillRect(0, 0, W, H);
+    baia(g, 20, 70, W - 40, 330, this.quadro, nave.cor);
+    texto(g, nave.nome.toUpperCase(), W / 2, 44, 30, rgba(nave.cor, 1), 'center');
+    const s = Arte.nave(nave.id, pc, Math.floor(this.quadro / 5)), big = Arte.ampliar(s.img, 5), a = Arte.NAVES_ARTE[nave.id] || Arte.NAVES_ARTE.FALCAO;
+    const ox = Math.round(W / 2 - big.width / 2), oy = Math.round(130 + Math.sin(this.quadro * 0.05) * 3);
+    g.globalAlpha = dono ? 1 : 0.5; g.drawImage(big, ox, oy); g.globalAlpha = 1;
+    const ponto = (gx, gy) => [ox + gx * 10 + 5, oy + gy * 10 + 5];
+    const pecas = [['motor', ponto(a.motores[0][0] - 2, a.motores[0][1]), -1], ['blindagem', ponto(a.placas[0][0] + 1, a.placas[0][1]), -1], ['modulo', ponto(a.nucleo[0] - 4, 4), -1],
+      ['nucleo', ponto(a.nucleo[0], 21 - a.nucleo[1]), 1], ['canhao', ponto(a.canhoes[0][0] + 1, 11), 1]];
+    const slots = [W * 0.2, W * 0.5, W * 0.8, W * 0.33, W * 0.67];   // posições fixas dos rótulos: 3 em cima, 2 embaixo
+    pecas.forEach(([id, [px, py], lado], k) => {
+      const pe = PECAS.find(x => x.id === id), lv = pc[id], ly = lado < 0 ? 104 : 392, lxp = slots[k];
+      g.strokeStyle = AMARELO; g.lineWidth = 2; g.beginPath(); g.moveTo(lxp, ly + (lado < 0 ? 8 : -26)); g.lineTo(px, py); g.stroke();
+      g.fillStyle = AMARELO; g.fillRect(px - 3, py - 3, 6, 6);
+      texto(g, `${pe.nome.toUpperCase()} · Nv ${lv}`, lxp, ly - (lado < 0 ? 8 : 0), 17, lv >= 5 ? '#78ff96' : '#fff', 'center');
+      texto(g, lv > 1 ? pe.niveis[lv - 1] : 'padrão de fábrica', lxp, ly + (lado < 0 ? 8 : 18), 14, CINZA, 'center', true, 600);
+    });
+    const pil = PILOTO_NAVE[nave.id];
+    if (pil) {
+      painel(g, 20, 424, W - 280, 104);
+      retrato(g, pil[0], pil[1], 26, 428, 96);
+      texto(g, 'PILOTO: ' + ELENCO[pil[0]].n, 132, 452, 18, ELENCO[pil[0]].cor);
+      quebrar(g, '“' + pil[2] + '”', 132, 478, W - 430, 16, '#fff');
+    }
+    botao(g, 'Fechar', W - 120, 476, 180, 56, () => { this.zoomNave = false; }, { tam: 20, cor: AMARELO });
+  }
   telaMapa(g) {
-    texto(g, 'ESCOLHA A FASE', W / 2, 42, 32, '#fff', 'center');
+    texto(g, 'ESCOLHA A FASE', W / 2, 40, 30, '#fff', 'center');
     const d = Config.dificuldade, ids = ['facil', 'normal', 'dificil'];
-    ids.forEach((id, i) => botao(g, DIFS[id].nome, W / 2 + (i - 1) * 170, 86, 160, 50, () => { Config.dificuldade = id; Config.salvar(); },
-      { sel: d === id, tam: 21, cor: d === id ? AMARELO : '#fff' }));
-    texto(g, DIFS[d].nota, W / 2, 128, 17, CINZA, 'center', true, 600);
-    const cw = Math.min(150, (W - 40 - 4 * 12) / 5), x0 = W / 2 - (5 * cw + 4 * 12) / 2;
-    for (let n = 1; n <= 10; n++) {
-      const k = (n - 1) % 5, row = Math.floor((n - 1) / 5), x = x0 + k * (cw + 12), y = 172 + row * 150, h = 130;
-      if (k === 0) texto(g, row === 0 ? 'SETOR 1' : 'SETOR 2 · mais difícil', x, y - 8, 16, AMARELO);
-      const lib = Dados.liberada(n), est = Dados.estrelas(n), sel = this.noMapa === n && !usouToque;
-      caixa(g, x, y, cw, h, 14, lib ? 'rgba(10,16,40,.9)' : 'rgba(20,20,30,.8)', sel ? AMARELO : est >= 3 ? '#ffd650' : lib ? 'rgba(120,150,255,.55)' : 'rgba(255,255,255,.12)', sel ? 4 : 2);
-      texto(g, lib ? String(n) : '🔒', x + cw / 2, y + 50, 40, lib ? '#fff' : '#6a6e84', 'center', lib);
-      texto(g, FASES[k].nome, x + cw / 2, y + 78, 15, lib ? CINZA : '#555a70', 'center', false, 600);
-      for (let i = 0; i < 3; i++) texto(g, '★', x + cw / 2 + (i - 1) * 34, y + 114, 30, i < est ? AMARELO : '#3c3c50', 'center', false);
+    ids.forEach((id, i) => botao(g, DIFS[id].nome, W / 2 + (i - 1) * 170, 82, 160, 44, () => { Config.dificuldade = id; Config.salvar(); },
+      { sel: d === id, tam: 20, cor: d === id ? AMARELO : '#fff' }));
+    texto(g, DIFS[d].nota, W / 2, 122, 15, CINZA, 'center', true, 600);
+    texto(g, `★ ${Hist.estrelas()}/45`, 24, 40, 20, AMARELO);
+    const cw = Math.min(150, (W - 40 - 4 * 12) / 5), x0 = W / 2 - (5 * cw + 4 * 12) / 2, h = 86;
+    for (let n = 1; n <= N_FASES; n++) {
+      const k = (n - 1) % 5, row = Math.floor((n - 1) / 5), x = x0 + k * (cw + 12), y = 152 + row * 108;
+      if (k === 0) texto(g, NOMES_SETOR[row], x, y - 6, 14, AMARELO);
+      const lib = Dados.liberada(n), est = Dados.estrelas(n), sel = this.noMapa === n && !usouToque, fim = n === N_FASES;
+      caixa(g, x, y, cw, h, 12, lib ? (fim ? 'rgba(40,14,60,.92)' : 'rgba(10,16,40,.9)') : 'rgba(20,20,30,.8)', sel ? AMARELO : est >= 3 ? '#ffd650' : lib ? (fim ? '#c08cff' : 'rgba(120,150,255,.55)') : 'rgba(255,255,255,.12)', sel ? 4 : 2);
+      texto(g, lib ? String(n) : '🔒', x + 22, y + 34, 28, lib ? '#fff' : '#6a6e84', 'center', lib);
+      for (let i = 0; i < 3; i++) texto(g, '★', x + cw - 58 + i * 20, y + 30, 20, i < est ? AMARELO : '#3c3c50', 'center', false);
+      quebrar(g, NOMES_FASE[n - 1], x + 10, y + 58, cw - 20, 13, lib ? CINZA : '#555a70', 600);
       botoes.push({ x, y, w: cw, h, acao: () => { this.noMapa = n; if (lib) { Som.tocar('menu'); this.iniciarDoMapa(n); } else { Som.tocar('erro'); this.aviso(`Complete a fase ${n - 1} para liberar`, [255, 160, 120]); } } });
     }
-    texto(g, '★ concluir   ★★ cumprir o desafio   ★★★ sem perder vida', W / 2, 486, 16, CINZA, 'center', true, 600);
-    botao(g, '← Hangar', 100, H - 28, 160, 48, () => this.trocar('HANGAR'), { tam: 19 });
+    texto(g, '★ concluir   ★★ cumprir o desafio   ★★★ sem perder vida', W / 2, 476, 14, CINZA, 'center', true, 600);
+    botao(g, '← Hangar', 100, H - 28, 160, 44, () => this.trocar('HANGAR'), { tam: 19 });
+    botao(g, `🗝 Câmaras · ${Hist.cam().chaves}`, W - 130, H - 28, 230, 44, () => { this.abaCam = 0; this.trocar('CAMARAS'); }, { tam: 19, cor: AMARELO });
   }
-
   telaConfig(g) {
     texto(g, 'CONFIGURAÇÕES', W / 2, 46, 30, '#fff', 'center');
     const w = Math.min(620, W - 40), x = W / 2 - w / 2;
@@ -1783,8 +1972,10 @@ class Jogo {
   nodoAtual() { return (this.ciclo - 1) * 5 + this.faseIdx + 1; }
   /** Mostra a cena da fase (t = 'a' antes, 'd' depois do chefe) só na primeira vez; depois segue com fn. */
   comCena(nodo, t, fn) {
-    const l = Hist.cena(nodo, t);
-    if (!l || Hist.vista(nodo, t)) return fn();
+    if (typeof nodo === 'number' && nodo > 10 && nodo <= N_FASES && !Hist.h().escolha) return this.pedirEscolha(() => this.comCena(nodo, t, fn));
+    const esc = (Hist.h().escolha || '').charAt(0).toUpperCase();
+    const l = (Hist.cena(nodo, t) || []).filter(x => !x[3] || x[3] === esc);
+    if (!l.length || Hist.vista(nodo, t)) return fn();
     this.cena = { nodo, t, l, i: 0, fim: fn }; this.trocar('CENA');
   }
   atualizarCena() {
@@ -1799,14 +1990,14 @@ class Jogo {
       else this.timer = 0;
     }
   }
-  fimCena() { const c = this.cena; this.cena = null; this.toqueCena = false; if (!c) return; Hist.marcar(c.nodo, c.t); c.fim(); }
+  fimCena() { const c = this.cena; this.cena = null; this.toqueCena = false; if (!c) return; Hist.marcar(c.nodo, c.t); if (c.nodo === 10 && c.t === 'd' && !Hist.h().escolha) { Hist.marcar('10e', ''); return this.pedirEscolha(c.fim, false); } c.fim(); }
   podeContinuar() { return !this.continuou && !this.tutorial && Dados.prog.cristais >= Hist.CUSTO_CONTINUAR; }
   continuar() {
     if (!Dados.pagar(0, Hist.CUSTO_CONTINUAR)) return;
     const p = this.player; this.continuou = true;
     p.vivo = true; p.vidas = Math.min(3, p.at.vidas); p.invencivel = 240; p.escudo = true;
     this.tiros = this.tiros.filter(t => !t.inimigo);
-    this.efeitos.anel(p.x, p.y, [120, 255, 200], 90); this.efeitos.fx('teleporte', p.x, p.y + 20, 0.9); Som.tocar('powerup'); vibrar([40, 40, 80]);
+    this.efeitos.anel(p.x, p.y, [120, 255, 200], 90); this.salto(p.x, p.y); Som.tocar('powerup'); vibrar([40, 40, 80]);
     this.trocar(this.estadoAntes || 'JOGANDO');
   }
   abrirHist() {
@@ -1870,7 +2061,7 @@ class Jogo {
       else quebrar(g, `🔒 Ganhe mais estrelas no mapa para liberar esta página (${n}/${this.pag}).`, px + 30, py + 104, pw - 60, 22, CINZA);
       botao(g, '◀', px + 70, py + ph - 44, 100, 52, () => { this.pag = Math.max(1, this.pag - 1); }, { tam: 24, desligado: this.pag <= 1 });
       botao(g, '▶', px + 190, py + ph - 44, 100, 52, () => { this.pag = Math.min(DIARIO.length, this.pag + 1); }, { tam: 24, desligado: this.pag >= DIARIO.length });
-      if (Hist.vista(fase, 'a')) botao(g, '▶ Rever a cena desta fase', px + pw - 190, py + ph - 44, 330, 52, () => { this.cena = { nodo: fase, t: 'a', l: Hist.cena(fase, 'a'), i: 0, fim: () => this.trocar('HIST') }; this.trocar('CENA'); }, { tam: 18 });
+      if (Hist.vista(fase, 'a')) botao(g, '▶ Rever a cena desta fase', px + pw - 190, py + ph - 44, 330, 52, () => { this.cena = { nodo: fase, t: 'a', l: Hist.cena(fase, 'a').filter(x => !x[3] || x[3] === (Hist.h().escolha || '').charAt(0).toUpperCase()), i: 0, fim: () => this.trocar('HIST') }; this.trocar('CENA'); }, { tam: 18 });
     } else if (this.aba === 2) {
       Hist.missoes().forEach((m, i) => {
         const y = py + 20 + i * 104, pct = m.prog / m.meta, pronto = m.prog >= m.meta, rec = m.c ? `¢ ${m.c}` : `💎 ${m.d}`;
@@ -1899,6 +2090,317 @@ class Jogo {
       });
     }
     botao(g, '← Menu', 100, H - 32, 160, 46, () => this.trocar('MENU'), { tam: 19 });
+  }
+
+  // ---------------------------------------------------------- código de teste
+  digitarCodigo() {
+    const c = prompt('Digite o código:');
+    if (c === null) return;
+    if (c.trim().toUpperCase() !== 'HANGAR10MIL') { Som.tocar('erro'); this.aviso('Código inválido', [255, 120, 120]); return; }
+    const p = Dados.prog;
+    p.codigo = true;
+    for (const n of NAVES) p.naves[n.id].dono = true;
+    for (let n = 1; n <= N_FASES; n++) p.mapa[n] = 3;
+    Hist.h().cenas = {};
+    Dados.salvar();
+    Som.tocar('compra'); this.aviso('TUDO DESBLOQUEADO!', [120, 255, 160]);
+  }
+
+  // ---------------------------------------------------------- painel de teste (só com o código liberado)
+  telaTeste(g) {
+    const t = this.teste; if (!t || !Dados.prog.codigo) return this.trocar('MENU');
+    texto(g, '🧪 PAINEL DE TESTE', W / 2, 40, 28, '#ff9a6a', 'center');
+    texto(g, 'Ferramentas de teste: as ações mexem no seu progresso atual.', W / 2, 66, 15, CINZA, 'center', true, 600);
+    const p = Dados.prog, esc = Hist.h().escolha || 'nenhuma', ok = msg => { Dados.salvar(); Som.tocar('compra'); this.aviso(msg, [120, 255, 160]); };
+    const acoes = [
+      ['🚀 Liberar todas as naves', () => { for (const n of NAVES) p.naves[n.id].dono = true; ok('NAVES LIBERADAS'); }],
+      ['🔧 Peças no máximo', () => { for (const n of NAVES) p.naves[n.id].pecas = { canhao: 5, motor: 5, blindagem: 5, nucleo: 5, modulo: 5 }; ok('PEÇAS NO NÍVEL 5'); }],
+      ['🗺 Liberar todas as fases', () => { for (let n = 1; n <= N_FASES; n++) if (!p.mapa[n]) p.mapa[n] = 1; ok('FASES LIBERADAS'); }],
+      ['★ Todas as 45 estrelas', () => { for (let n = 1; n <= N_FASES; n++) p.mapa[n] = 3; ok('45 ESTRELAS'); }],
+      ['¢ +10.000 e 💎 +100', () => { p.creditos += 10000; p.cristais += 100; ok('+¢10.000 +💎100'); }],
+      ['🗝 5 chaves de câmara', () => { p.cam.chaves = 5; ok('5 CHAVES'); }],
+      ['🎒 Todos os itens (Lendária)', () => { for (const id of Object.keys(ITENS_CAM)) p.cam.itens[id] = 4; ok('ITENS LENDÁRIOS'); }],
+      [`🔀 Escolha: ${esc}`, () => { const h = Hist.h(); h.escolha = { '': 'destruir', destruir: 'libertar', libertar: '' }[h.escolha || '']; ok('ESCOLHA: ' + (h.escolha || 'nenhuma')); }],
+      ['🎬 Rever todas as cenas', () => { Hist.h().cenas = {}; ok('CENAS VOLTAM A APARECER'); }],
+      [`🛡 Invencível: ${t.inv ? 'SIM' : 'não'}`, () => { t.inv = !t.inv; }],
+      [`👾 Começar no chefe: ${t.chefe ? 'SIM' : 'não'}`, () => { t.chefe = !t.chefe; }],
+      [`📡 Veículo bônus frequente: ${t.bonus ? 'SIM' : 'não'}`, () => { t.bonus = !t.bonus; }],
+    ];
+    const cw = Math.min(300, (W - 60) / 3);
+    acoes.forEach(([rot, f], i) => botao(g, rot, W / 2 + ((i % 3) - 1) * (cw + 10), 108 + Math.floor(i / 3) * 70, cw, 56, f, { tam: 16 }));
+    botao(g, '← Menu', 100, H - 32, 160, 46, () => this.trocar('MENU'), { tam: 19 });
+  }
+
+  /** Troca a arma em uso com a da reserva (cada uma mantém o próprio nível). */
+  trocarArma() {
+    const p = this.player; if (!p.reserva || !p.vivo) return;
+    const r = p.reserva; p.reserva = { tipo: p.tipoArma, nivel: p.arma }; p.tipoArma = r.tipo; p.arma = r.nivel;
+    const a = ARMAS[p.tipoArma]; Som.tocar('menu'); vibrar(20);
+    this.efeitos.anel(p.x, p.y, a.cor, 34); this.aviso(`${a.nome.toUpperCase()} NÍVEL ${p.arma}`, a.cor);
+  }
+  // ---------------------------------------------------------- entrada na fase: salto do hiperespaço (no lugar do efeito com personagem)
+  chegadaHiper(t) {
+    const p = this.player;
+    if (t === 1) { p.x = -70; p.semPiscar = 60; }
+    if (t <= 40) { p.x = -70 + 190 * (1 - Math.pow(1 - t / 40, 3)); for (let k = 0; k < 3; k++) this.efeitos.add(p.x - 40 - rnd(30), p.y + rnd(-10, 10), -rnd(6, 12), 0, 2, 14, [140, 220, 255]); }
+    if (t === 40) { p.x = 120; this.salto(p.x, p.y); }
+  }
+  /** Anel de energia + faíscas: chegada, salto e continuar. */
+  salto(x, y) {
+    this.efeitos.anel(x, y, [140, 220, 255], 70); this.efeitos.anel(x, y, [255, 255, 255], 36);
+    for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; this.efeitos.add(x, y, Math.cos(a) * 4, Math.sin(a) * 4, 2, 20, [170, 230, 255]); }
+  }
+
+  // ---------------------------------------------------------- veículos bônus (versão 3.7)
+  chamarAliado() {
+    const lista = aliadosDisponiveis(), a = lista[Math.floor(Math.random() * lista.length)], p = this.player;
+    const al = { id: a.id, t: 0 };
+    switch (a.id) {
+      case 'CARGUEIRO': Object.assign(al, { x: -90, y: 110 + rnd(60), solta: 0 }); break;
+      case 'BROCA': Object.assign(al, { x: -100, y: p.y, passe: 0 }); break;
+      case 'VEXX': Object.assign(al, { x: -60, y: p.y - 70, dur: 900 }); break;
+      case 'ASA': Object.assign(al, { x: -70, y: p.y + 70, dur: 600 }); break;
+      case 'CAPITANIA': Object.assign(al, { x: -130, y: H - 180 }); break;
+    }
+    this.aliados.push(al);
+    this.toast = { quem: a.quem, ex: a.ex, nome: a.nome, fala: a.fala, t: 170 };
+    Som.tocar('alerta'); vibrar([30, 30, 30]);
+    return a.nome.toUpperCase() + '!';
+  }
+  atualizarAliados() {
+    if (this.toast && this.toast.t > 0) this.toast.t--;
+    if (!this.aliados || !this.aliados.length) return;
+    const p = this.player, luta = ['JOGANDO', 'ALERTA_CHEFE', 'CHEFE'].includes(this.estado), c = this.chefe;
+    for (const a of this.aliados) {
+      a.t++;
+      switch (a.id) {
+        case 'CARGUEIRO':
+          a.x += 3.2;
+          if (a.x > 60 && a.solta < 4 && a.t % 45 === 0) { this.itens.push(new Item([ITEM_DE('CURA'), ITEM_DE('BOMBA'), ITEM_DE('ARMA'), ITEM_DE('ESCUDO')][a.solta], a.x, a.y + 20)); a.solta++; }
+          if (a.x > W + 100) a.fim = true;
+          break;
+        case 'BROCA': {
+          a.x += 11;
+          const bx = a.x, by = a.y, hw = 40, hh = 18;
+          for (const i of this.inimigos) if (i.vivo && Math.abs(i.x - bx) < hw + 14 && Math.abs(i.y - by) < hh + 14 && i.danificar(40)) this.matar(i);
+          if (c && c.vivo && this.estado === 'CHEFE' && !c.entrando && !a.bateu && Math.abs(c.x - bx) < c.w * 0.4 && Math.abs(c.y - by) < c.h * 0.4) { a.bateu = true; this.danificarChefe(c.vidaMax * 0.06); this.tremer(12); this.efeitos.explosao(bx + 30, by, 60); }
+          if (a.t % 3 === 0) this.efeitos.add(bx - 40, by + rnd(-6, 6), -2, rnd(-1, 1), 3, 18, [200, 190, 170]);
+          if (a.x > W + 120) { if (++a.passe >= 3) a.fim = true; else { a.x = -100; a.y = p.y; a.bateu = false; } }
+          break;
+        }
+        case 'VEXX': case 'ASA': {
+          const alvoY = a.id === 'VEXX' ? (p.y > 160 ? p.y - 70 : p.y + 70) : (p.y < H - 140 ? p.y + 70 : p.y - 70);
+          a.y += (alvoY - a.y) * 0.08; a.x += ((p.x - 30) - a.x) * 0.06;
+          if (luta && a.id === 'VEXX' && a.t % 7 === 0) this.tiros.push(new Tiro(a.x + 30, a.y, 12, 0, p.at.dano * 0.9, false));
+          if (luta && a.id === 'ASA' && a.t % 28 === 0) for (const s of [-1, 1]) this.tiros.push(new Tiro(a.x + 10, a.y + s * 8, 3, s * 2, 3 * p.at.dano, false, 'MISSIL'));
+          if (a.t > a.dur) { a.x += 0; a.saindo = true; }
+          if (a.saindo) { a.x += 9; if (a.x > W + 80) a.fim = true; }
+          break;
+        }
+        case 'CAPITANIA':
+          a.x += 1.6;
+          if (luta && a.t % 22 === 0 && a.x > 40) this.tiros.push(new Tiro(a.x + 50, a.y - 10, 7, 0, 10 * p.at.dano / 2.6, false, 'OBUS'));
+          if (a.x > W + 140) a.fim = true;
+          break;
+      }
+    }
+    this.aliados = this.aliados.filter(a => !a.fim);
+  }
+  desenharAliado(g, a) {
+    const q = Math.floor(this.quadro / 5);
+    let img;
+    switch (a.id) {
+      case 'VEXX': img = Arte.nave('COMETA', { canhao: 3, motor: 4, blindagem: 2, nucleo: 3, modulo: 1 }, q).img; break;
+      case 'ASA': img = Arte.nave('RELAMPAGO', { canhao: 4, motor: 3, blindagem: 3, nucleo: 3, modulo: 1 }, q).img; break;
+      default: img = Arte.veiculo(a.id, Math.floor(this.quadro / 3));
+    }
+    if (a.id === 'VEXX' || a.id === 'ASA') { g.globalAlpha = 0.9; g.drawImage(img, Math.round(a.x - img.width * 0.4), Math.round(a.y - img.height * 0.4), Math.round(img.width * 0.8), Math.round(img.height * 0.8)); g.globalAlpha = 1; }
+    else desenharCentro(g, img, Math.round(a.x), Math.round(a.y));
+    if (a.id === 'BROCA' || a.id === 'CARGUEIRO' || a.id === 'CAPITANIA') { g.fillStyle = pisca(this.quadro, 4) ? '#ffd24a' : '#ff7b2e'; g.fillRect(Math.round(a.x - img.width / 2 - 8), Math.round(a.y - 3), 8, 6); }
+  }
+  telaToast(g) {
+    const t = this.toast, a = Math.min(1, t.t / 20), x = 12, y = 132;   // logo abaixo das moedas/combo: não cobre a barra do chefe
+    g.globalAlpha = a;
+    caixa(g, x, y, 380, 84, 10, 'rgba(8,10,24,.9)', rgba(CHAMADO.cor, 0.9), 2);
+    retrato(g, t.quem, t.ex, x + 4, y + 2, 80);
+    texto(g, t.nome, x + 92, y + 28, 17, ELENCO[t.quem].cor);
+    quebrar(g, t.fala, x + 92, y + 52, 280, 15, '#fff');
+    g.globalAlpha = 1;
+  }
+
+  // ---------------------------------------------------------- Setor 3, finais e câmaras (versão 3.6)
+  nomeChefe() { const n = this.nodoAtual(); return this.camara ? 'Guardião de ' + this.camara.nome : n <= N_FASES ? NOMES_CHEFE[n - 1] : this.fase.chefe.nome; }
+  criarChefe() {
+    const nodo = this.nodoAtual(), info = !this.camara && nodo === N_FASES ? CHEFE_FINAL : this.fase.chefe;
+    let mult = (1 + (this.ciclo - 1) * 0.6) * dm().vida;
+    if (this.camara) mult *= 0.5 * (1 + 0.1 * this.camara.sorte);
+    const c = new Chefe(info, this.dif(), mult); c.nome = this.nomeChefe(); return c;
+  }
+  mostrarFinal() {
+    const h = Hist.h(), tipo = Hist.estrelas() >= 45 ? 'S' : h.escolha === 'libertar' ? 'L' : 'D';
+    h.finais[tipo] = 1; Dados.salvar();
+    const vitoria = () => { this.zerou = true; this.venceu = true; this.itens = []; this.tiros = []; this.trocar('VITORIA'); };
+    this.comCena('fim', tipo, () => this.comCena('gancho', '', vitoria));
+  }
+  pedirEscolha(fn, contexto = true) {
+    const ir = () => { this.aposEscolha = fn; this.trocar('ESCOLHA'); };
+    if (!contexto || Hist.vista('10e', '')) return ir();
+    this.cena = { nodo: '10e', t: '', l: CENAS['10d'].slice(-3), i: 0, fim: ir }; this.trocar('CENA');   // quem viu a 10d antiga revê a explicação
+  }
+  escolher(e) { Hist.h().escolha = e; Dados.salvar(); Som.tocar('powerup'); vibrar([40, 40, 80]); const fn = this.aposEscolha; this.aposEscolha = null; if (fn) fn(); else this.trocar('MENU'); }
+  telaEscolha(g) {
+    g.fillStyle = 'rgba(4,6,18,.6)'; g.fillRect(0, 0, W, H);
+    texto(g, 'A ESCOLHA DE DREN', W / 2, 70, 34, AMARELO, 'center');
+    texto(g, 'Ela muda cenas do Setor 3 e o final. Não dá para voltar atrás.', W / 2, 104, 17, CINZA, 'center', true, 600);
+    const cw = Math.min(400, (W - 80) / 2), op = [['destruir', '💥 Destruir o Cerne', 'A Fome perde a âncora. As memórias do Almirante se perdem com ele.', '#ff8a5a', 2],
+      ['libertar', '🕊 Libertar a memória', 'Eskarion volta a ser quem era e luta ao seu lado. O Cerne fica aberto.', '#6edcff', 1]];
+    op.forEach(([id, tit, txt, cor, ex], i) => {
+      const x = W / 2 + (i ? 20 : -20 - cw), y = 140;
+      painel(g, x, y, cw, 300);
+      retrato(g, i ? 'eskarion' : 'zarkoth', i ? 1 : ex, x + cw / 2 - 64, y + 14, 128);
+      texto(g, tit, x + cw / 2, y + 170, 22, cor, 'center');
+      quebrar(g, txt, x + 20, y + 204, cw - 40, 17, '#fff');
+      botao(g, 'Escolher', x + cw / 2, y + 270, 200, 46, () => { if (this.timer >= 45) this.escolher(id); }, { tam: 19, cor: cor, desligado: this.timer < 45 });
+    });
+  }
+  aplicarEquip() {
+    const p = this.player, eq = Hist.equipado(), r = eq.reliquia, s = eq.selo;
+    this.equipPoder = eq.poder || null; p.fortuna = 1; p.invExtra = 0;
+    if (r) switch (r.id) {
+      case 'coracao': p.vidas += r.nv >= 3 ? 2 : 1; break;
+      case 'lente': p.at.ima += 60 * r.nv; break;
+      case 'relogio': p.energia = Math.min(100, 20 * r.nv); break;
+      case 'veu': p.invExtra = 30 * r.nv; break;
+    }
+    if (s) switch (s.id) {
+      case 'chama': p.at.dano *= 1 + 0.08 * s.nv; break;
+      case 'fortuna': p.fortuna = 1 + 0.15 * s.nv; break;
+      case 'trovao': p.bombas += s.nv >= 3 ? 2 : 1; break;
+      case 'argenteo': p.escudo = true; if (s.nv >= 3) p.at.regenEscudo = p.at.regenEscudo ? Math.min(p.at.regenEscudo, 1200) : 1500; break;
+    }
+  }
+  usarPoder() {
+    const eq = this.equipPoder, p = this.player;
+    if (!eq || this.poderCd > 0 || !p.vivo || !['JOGANDO', 'ALERTA_CHEFE', 'CHEFE'].includes(this.estado)) { vibrar(15); return; }
+    const nv = eq.nv; this.poderCd = RECARGA_PODER[nv] * 60;
+    switch (eq.id) {
+      case 'salto': this.salto(p.x, p.y); p.x = Math.max(p.x, Math.min(W * 0.62, p.x + 230)); p.invencivel = Math.max(p.invencivel, 30 + nv * 15); this.salto(p.x, p.y); break;
+      case 'cortina': p.efeitos.BOLHA = Math.max(p.efeitos.BOLHA, (3 + nv) * 60); break;
+      case 'chuva': for (let i = 0; i < 8 + nv * 4; i++) { const t = new Tiro(rnd(W * 0.25, W - 40), rnd(-35, -5), rnd(-0.4, 0.4), rnd(6, 11), p.at.dano * 3, false); t.tam = 1.6; this.tiros.push(t); } break;
+      case 'ancora': this.lento = Math.max(this.lento || 0, (3 + nv) * 60); Som.velocidadeMusica(0.8); break;
+      case 'pulso': for (const t of this.tiros) if (t.inimigo) t.vivo = false; this.efeitos.anel(p.x, p.y, [140, 220, 255], 260); p.ganharEnergia(10 * nv); break;
+    }
+    this.aviso(ITENS_CAM[eq.id].n.toUpperCase() + '!', [190, 160, 255]); Som.tocar('especial'); vibrar(40);
+  }
+  iniciarCamara(i) {
+    const c = CAMARAS[i];
+    if (!Hist.liberadaCam(i)) { Som.tocar('erro'); return this.aviso(`Ganhe 1 estrela na fase ${c.req} para abrir`, [255, 160, 120]); }
+    if (!Hist.usarChave()) { Som.tocar('erro'); return this.aviso('Sem Chave de Câmara: derrote chefes ou compre com 💎', [255, 160, 120]); }
+    this.resCam = null; telaCheia();
+    this.camara = { i, nome: c.nome, cor: c.cor, sala: 1, risco: false, sorte: 0, meta: 13 };
+    this.novaPartida(this.naveEscolhida || this.player.tipo, (c.ciclo - 1) * 5 + c.k + 1);
+    this.desafioStatus = 2;   // câmara não tem desafio bônus
+  }
+  escolherPorta(risco) {
+    const c = this.camara; if (!c) return;
+    c.sala++; c.risco = risco; if (risco) { c.sorte++; this.creditosRun += 30; }
+    c.meta = c.sala === 5 ? 8 : Math.round((10 + c.sala * 3) * (risco ? 1.4 : 1));
+    this.abatesFase = 0; this.spawn = 60; Som.tocar('menu');
+    this.aviso(c.sala === 5 ? 'SALA DO GUARDIÃO' : `SALA ${c.sala}${risco ? ' · ARRISCADA' : ''}`, risco ? [255, 140, 90] : [160, 220, 255]);
+    this.trocar('JOGANDO');
+  }
+  telaPorta(g) {
+    const c = this.camara; if (!c) return;
+    g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(0, 0, W, H);
+    texto(g, `SALA ${c.sala} DE 5 CONCLUÍDA`, W / 2, 120, 32, c.cor, 'center');
+    texto(g, c.sala === 4 ? 'A próxima porta leva ao Guardião' : 'Escolha a próxima porta', W / 2, 156, 18, '#fff', 'center', true, 600);
+    const bw = Math.min(380, (W - 80) / 2);
+    botao(g, '🚪 Porta segura', W / 2 - bw / 2 - 12, 250, bw, 90, () => this.escolherPorta(false), { tam: 24, cor: '#a0dcff' });
+    botao(g, '🔥 Porta arriscada', W / 2 + bw / 2 + 12, 250, bw, 90, () => this.escolherPorta(true), { tam: 24, cor: '#ff9a6a', fundo: 'rgba(120,40,20,.6)', borda: '#ff9a6a' });
+    texto(g, 'inimigos normais', W / 2 - bw / 2 - 12, 320, 15, CINZA, 'center', true, 600);
+    texto(g, 'mais inimigos e mais fortes · baús melhores · +¢30', W / 2 + bw / 2 + 12, 320, 15, CINZA, 'center', true, 600);
+    texto(g, `Sorte acumulada: ${'★'.repeat(c.sorte) || '—'}`, W / 2, 380, 18, AMARELO, 'center');
+  }
+  fimCamara() {
+    const c = this.camara; if (!c) return;
+    for (const u of this.itens) { if (u.tipo === MOEDA) this.creditosRun += u.valor; else if (u.tipo === CRISTAL) this.cristaisRun += u.valor; }
+    this.itens = [];
+    const primeira = Hist.concluirCamara(c.i);
+    this.ev('camara'); if (primeira) this.cristaisRun += 2;
+    this.guardarGanhos();
+    this.tesouro = { c, primeira, baus: Hist.baus(c.sorte, primeira), aberto: -1, res: null };
+    this.camara = null; this.filaAvisos = []; this.avisoTimer = 0; this.trocar('TESOURO');
+  }
+  abrirBau(k) {
+    const t = this.tesouro; if (!t || t.aberto >= 0) return;
+    t.aberto = k; t.res = Hist.receber(t.baus[k]);
+    Som.tocar('compra'); vibrar([30, 30, 90]); this.efeitos.explosao(W / 2 + (k - 1) * 250, 240, 50);
+  }
+  telaTesouro(g) {
+    const t = this.tesouro; if (!t) return this.trocar('CAMARAS');
+    texto(g, 'SALA DO TESOURO', W / 2, 52, 34, AMARELO, 'center');
+    texto(g, `${t.c.nome} concluída!${t.primeira ? '  Primeira vez: +💎2' : ''}`, W / 2, 86, 18, '#fff', 'center', true, 600);
+    texto(g, t.aberto < 0 ? 'Escolha UM baú. A cor mostra a raridade.' : '', W / 2, 116, 16, CINZA, 'center', true, 600);
+    const bw = Math.min(260, (W - 80) / 3);
+    t.baus.forEach((b, k) => {
+      const x = W / 2 + (k - 1) * (bw + 16) - bw / 2, y = 140, r = RARIDADES[b.nv], it = ITENS_CAM[b.id], ab = t.aberto === k;
+      g.globalAlpha = t.aberto >= 0 && !ab ? 0.45 : 1;
+      caixa(g, x, y, bw, 260, 16, 'rgba(10,12,30,.9)', r.cor, ab ? 5 : 3);
+      texto(g, r.n.toUpperCase(), x + bw / 2, y + 34, 18, r.cor, 'center');
+      if (t.aberto < 0) {
+        texto(g, '🧰', x + bw / 2, y + 140, 70, '#fff', 'center', false);
+        botoes.push({ x, y, w: bw, h: 260, acao: () => this.abrirBau(k) });
+      } else {
+        texto(g, it.ic, x + bw / 2, y + 104, 48, '#fff', 'center', false);
+        texto(g, it.n, x + bw / 2, y + 146, 18, '#fff', 'center');
+        texto(g, { reliquia: 'Relíquia', selo: 'Selo', poder: 'Poder (botão ✦ / tecla V)' }[it.tipo], x + bw / 2, y + 170, 13, CINZA, 'center', true, 600);
+        quebrar(g, it.d(b.nv), x + 16, y + 198, bw - 32, 14, '#c8d2f0', 600);
+      }
+      g.globalAlpha = 1;
+    });
+    if (t.aberto >= 0) {
+      texto(g, t.res.novo ? 'NOVO! Já está no Equipamento.' : `Você já tinha esse item igual ou melhor: +¢${t.res.moedas}`, W / 2, 432, 19, t.res.novo ? '#78ff96' : AMARELO, 'center');
+      botao(g, 'Continuar', W / 2, H - 50, 240, 54, () => { this.resCam = { ok: true, nome: t.c.nome }; this.tesouro = null; this.trocar('CAMARAS'); }, { tam: 22, cor: AMARELO });
+    }
+  }
+  telaCamaras(g) {
+    const cam = Hist.cam(), aba = this.abaCam || 0;
+    texto(g, 'CÂMARAS', W / 2, 40, 30, '#fff', 'center');
+    texto(g, `🗝 ${cam.chaves}/5`, 24, 40, 22, AMARELO);
+    moedas(g, W - 16, 32, Dados.prog.creditos, Dados.prog.cristais, 18, 'right');
+    ['🗝 Câmaras', '🎒 Equipamento'].forEach((s, i) => botao(g, s, W / 2 + (i - 0.5) * 220, 82, 210, 44, () => { this.abaCam = i; }, { sel: aba === i, tam: 18, cor: aba === i ? AMARELO : '#fff' }));
+    const px = 30, py = 114, pw = W - 60;
+    if (aba === 0) {
+      const cw = (pw - 24) / 3, ch = 92;
+      CAMARAS.forEach((c, i) => {
+        const x = px + (i % 3) * (cw + 12), y = py + Math.floor(i / 3) * (ch + 10), lib = Hist.liberadaCam(i), feita = cam.feitas[i] || 0;
+        caixa(g, x, y, cw, ch, 12, lib ? 'rgba(10,16,40,.9)' : 'rgba(20,20,30,.8)', feita ? '#78ff96' : lib ? c.cor : 'rgba(255,255,255,.12)', 2);
+        texto(g, (lib ? '' : '🔒 ') + c.nome, x + 16, y + 32, 19, lib ? c.cor : '#6a6e84');
+        texto(g, lib ? `5 salas · Guardião · ${'💀'.repeat(c.ciclo)}` : `Ganhe 1 estrela na fase ${c.req}`, x + 16, y + 58, 14, lib ? CINZA : '#555a70', 'left', true, 600);
+        if (feita) texto(g, `✔ ${feita}×`, x + cw - 14, y + 80, 15, '#78ff96', 'right');
+        botoes.push({ x, y, w: cw, h: ch, acao: () => this.iniciarCamara(i) });
+      });
+      const r = this.resCam;
+      if (r) texto(g, r.ok ? `${r.nome}: concluída!` : `${r.nome}: você caiu na sala ${r.sala}. As moedas ficaram com você.`, W / 2, py + 330, 16, r.ok ? '#78ff96' : '#ff9a8a', 'center', true, 700);
+      else texto(g, 'Cada entrada gasta 1 chave. Chefes derrotados dão chaves (máximo 5).', W / 2, py + 330, 15, CINZA, 'center', true, 600);
+      botao(g, '🗝 +1 chave · 💎2', W - 130, H - 32, 230, 46, () => { if (Hist.comprarChave()) { Som.tocar('compra'); this.aviso('+1 CHAVE DE CÂMARA', [255, 214, 80]); } else this.aviso(cam.chaves >= 5 ? 'Você já tem 5 chaves' : 'Cristais insuficientes', [255, 160, 120]); }, { tam: 17 });
+    } else {
+      const tipos = [['reliquia', 'RELÍQUIA'], ['selo', 'SELO'], ['poder', 'PODER']], cw = (pw - 24) / 3;
+      tipos.forEach(([t, nome], k) => {
+        const x = px + k * (cw + 12);
+        painel(g, x, py, cw, 340);
+        texto(g, nome, x + cw / 2, py + 30, 20, AMARELO, 'center');
+        const meus = Object.keys(ITENS_CAM).filter(id => ITENS_CAM[id].tipo === t && cam.itens[id]);
+        if (!meus.length) quebrar(g, 'Nenhum ainda. Abra baús nas câmaras.', x + 16, py + 70, cw - 32, 15, CINZA);
+        meus.forEach((id, j) => {
+          const nv = cam.itens[id], sel = cam.equip[t] === id, it = ITENS_CAM[id];
+          botao(g, `${it.ic} ${it.n}`, x + cw / 2, py + 68 + j * (meus.length > 4 ? 42 : 52), cw - 24, meus.length > 4 ? 36 : 44, () => Hist.equipar(id), { tam: 15, sel, cor: RARIDADES[nv].cor });
+        });
+        const e = cam.equip[t] && cam.itens[cam.equip[t]] ? cam.equip[t] : '';
+        if (e) { texto(g, `Em uso · ${RARIDADES[cam.itens[e]].n}`, x + 16, py + 290, 14, '#78ff96', 'left', true, 700); quebrar(g, ITENS_CAM[e].d(cam.itens[e]), x + 16, py + 312, cw - 32, 13, '#c8d2f0', 600); }
+      });
+    }
+    botao(g, '← Mapa', 100, H - 32, 160, 46, () => this.trocar('MAPA'), { tam: 19 });
   }
 
   telaDiaria(g) {
@@ -2090,7 +2592,7 @@ function quadro(agora) {
   acumulado += agora - ultimo; ultimo = agora;
   if (acumulado > PASSO * 5) acumulado = PASSO * 5;
   while (acumulado >= PASSO) {
-    try { jogo.atualizar(); } catch (e) { console.error(e); }
+    try { jogo.atualizar(); } catch (e) { erroJogo(e); }
     Input.fimQuadro();
     acumulado -= PASSO;
   }
@@ -2098,7 +2600,7 @@ function quadro(agora) {
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(escala * dpr, 0, 0, escala * dpr, offX * dpr, offY * dpr);
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
-  try { jogo.desenhar(ctx); } catch (e) { console.error(e); }
+  try { jogo.desenhar(ctx); } catch (e) { erroJogo(e); }
   ctx.restore();
   requestAnimationFrame(quadro);
 }

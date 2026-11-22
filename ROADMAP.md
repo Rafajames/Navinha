@@ -14,6 +14,12 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.8.0 (entregue)
+
+**Ferramentas de teste com código** — o painel de teste (antes só no endereço /teste/) virou parte do jogo principal e fica escondido: o botão "🔑 Código" no canto do menu libera tudo ao digitar HANGAR10MIL (naves, 45 estrelas, fases e cenas); depois disso aparece o botão "🧪 TESTE" com o painel (naves, peças, moedas, chaves, invencível, começar no chefe etc.). O save de teste separado e o botão "Zerar save de teste" foram removidos, porque agora as ações mexem no progresso real.
+- Pasta `docs/teste/` removida (está no histórico do git)
+- Visual com fontes pixel (Tiny5 e Press Start 2P) veio da versão de teste 3.7.2
+
 ## ✅ Versão 3.6.0 (entregue)
 
 **Nova identidade: Hangar Estelar (pacotes A e B)** — jogo renomeado (título, app instalado, descrição e ícones); paleta da marca (#0B1B3A, #3FD8E8, #FF2D55, #F2B441); logo novo (símbolo do hangar com foguete + nome) no menu principal, no lugar do título pixel "NAVINHA"; save e recordes continuam os mesmos
