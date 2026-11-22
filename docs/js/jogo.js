@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.5.0';
+const VERSAO = '3.6.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -896,6 +896,7 @@ const TUTORIAL = [
 ];
 
 const IMG_RETR = new Image(); IMG_RETR.src = 'assets/retratos.png';   // 4 expressões x 12 personagens, 128 px cada
+const IMG_LOGO = new Image(); IMG_LOGO.src = 'assets/logo-hangar.png'; // logo Hangar Estelar (símbolo + nome), 960x300
 function retrato(g, id, ex, x, y, tam) { const el = ELENCO[id]; if (el && IMG_RETR.complete && IMG_RETR.naturalWidth) g.drawImage(IMG_RETR, ex * 128, el.l * 128, 128, 128, x, y, tam, tam); }
 function linhasQuebradas(g, s, w, tam, peso = 600) {
   const out = []; let l = '';
@@ -1655,8 +1656,8 @@ class Jogo {
     g.drawImage(nv, W * 0.08, 240 + Math.sin(q * 0.03) * 18);
     const ufo = Arte.inimigo('BASICO');
     for (let i = 0; i < 3; i++) desenharCentro(g, Arte.ampliar(ufo, 1.4), W * 0.84 + (i % 2) * 44, 220 + i * 62 + Math.sin(q * 0.04 + i) * 14);
-    titulo(g, 'NAVINHA', 106, q, 72);
-    texto(g, 'E S P A C I A L', W / 2, 142, 22, CIANO, 'center');
+    if (IMG_LOGO.complete && IMG_LOGO.naturalWidth) g.drawImage(IMG_LOGO, W / 2 - 230, 22 + Math.sin(q * 0.03) * 4, 460, 144);
+    else titulo(g, 'HANGAR ESTELAR', 106, q, 60);
     ['JOGAR', 'CONFIGURAÇÕES', 'COMO JOGAR', 'RECORDES'].forEach((s, i) =>
       botao(g, s, W / 2, 218 + i * 68, 360, 58, () => this.acaoMenu(i), { sel: i === this.opcaoMenu && !usouToque, tam: i === 0 ? 28 : 22, cor: i === 0 ? AMARELO : undefined }));
     moedas(g, W - 16, 32, Dados.prog.creditos, Dados.prog.cristais, 20, 'right');

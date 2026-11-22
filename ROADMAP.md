@@ -1,4 +1,4 @@
-# 🗺️ Roadmap — Navinha Espacial
+# 🗺️ Roadmap — Hangar Estelar
 
 Lista viva de melhorias. Cada pedido novo entra aqui antes de ser programado.
 
@@ -13,6 +13,12 @@ Lista viva de melhorias. Cada pedido novo entra aqui antes de ser programado.
 A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versão web (`docs/`).
 
 ---
+
+## ✅ Versão 3.6.0 (entregue)
+
+**Nova identidade: Hangar Estelar (pacotes A e B)** — jogo renomeado (título, app instalado, descrição e ícones); paleta da marca (#0B1B3A, #3FD8E8, #FF2D55, #F2B441); logo novo (símbolo do hangar com foguete + nome) no menu principal, no lugar do título pixel "NAVINHA"; save e recordes continuam os mesmos
+- Arquivos novos: `docs/assets/logo-hangar.png`, ícones 192/512 e apple-touch regenerados
+- Quem já tinha o app instalado vê o nome e o ícone novos depois de reinstalar
 
 ## ✅ Versão 3.5.0 (entregue)
 

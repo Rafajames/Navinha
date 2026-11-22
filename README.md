@@ -1,4 +1,4 @@
-# 🚀 Navinha Espacial
+# 🚀 Hangar Estelar (antigo Navinha Espacial)
 
 Jogo de navinha 2D em Java (Swing/AWT): escolha sua nave, atravesse 5 fases, cumpra desafios, derrote os chefes e tente entrar no ranking.
 
