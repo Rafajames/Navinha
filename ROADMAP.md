@@ -14,6 +14,15 @@ A versão Java (`src/`) está **congelada** na 2.0. Tudo novo é feito na versã
 
 ---
 
+## ✅ Versão 3.9.0 (entregue)
+
+**Mais efeitos pixelfx (pacotes C, D, E e F)**
+- Inimigos: Teleportador implode ao sumir; Lança-laser mostra a energia carregando antes do raio; Mina explode em faíscas; Encouraçado com estouro crítico
+- Jogador: escudo aparece ao bloquear um golpe; estouro ao levar dano
+- Recompensas: confete nas laterais ao concluir a fase; brilho ao melhorar peça no Hangar
+- Transições: íris de estrela abrindo cada fase; TV desligando na morte (antes da tela de continuar/fim); some durante a pausa
+- Imagens novas em `docs/assets/fx/` (carga, fogos, critico, escudo, confete, tv, iris). Descartados por não combinarem com o espaço ou terem texto em inglês: explosões com chão e cogumelo, hit-flash e teletransporte com boneco, level-up e quest-complete
+
 ## ✅ Versão 3.8.0 (entregue)
 
 **Ferramentas de teste com código** — o painel de teste (antes só no endereço /teste/) virou parte do jogo principal e fica escondido: o botão "🔑 Código" no canto do menu libera tudo ao digitar HANGAR10MIL (naves, 45 estrelas, fases e cenas); depois disso aparece o botão "🧪 TESTE" com o painel (naves, peças, moedas, chaves, invencível, começar no chefe etc.). O save de teste separado e o botão "Zerar save de teste" foram removidos, porque agora as ações mexem no progresso real.

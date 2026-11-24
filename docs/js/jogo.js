@@ -4,7 +4,7 @@
  * PC: setas/WASD, Espaço, X, C, P/Esc, M. */
 'use strict';
 
-const VERSAO = '3.8.0';
+const VERSAO = '3.9.0';
 const H = 540;
 let W = 960;
 const PASSO = 1000 / 60;
@@ -148,7 +148,7 @@ class Inimigo {
         pairar(20);
         if (--this.recarga <= 0 && this.idade < 600) {
           this.recarga = 130 / dif;
-          j.efeitos.anel(this.x, this.y, [196, 58, 216], 30);
+          j.efeitos.anel(this.x, this.y, [196, 58, 216], 30); j.efeitos.fx('implosao', this.x, this.y, 0.35);
           let nx, ny, t = 0;
           do { nx = rnd(W * 0.45, W - 60); ny = rnd(80, H - 50); t++; } while (hyp(nx - p.x, ny - p.y) < 220 && t < 10);
           this.x = this.alvoX = nx; this.baseY = this.y = ny; this.alpha = 0;
@@ -189,7 +189,7 @@ class Inimigo {
       case 'LASER':
         if (this.idade < 700) {
           this.x += (this.alvoX - this.x) * 0.03;
-          if (this.estadoLaser === 0) { this.y += clamp(p.y - this.y, -1.4, 1.4); if (--this.timerLaser <= 0) { this.estadoLaser = 1; this.timerLaser = 60; } }
+          if (this.estadoLaser === 0) { this.y += clamp(p.y - this.y, -1.4, 1.4); if (--this.timerLaser <= 0) { this.estadoLaser = 1; this.timerLaser = 60; j.efeitos.fx('carga', this.x - 22, this.y, 0.5); } }
           else if (this.estadoLaser === 1) { if (--this.timerLaser <= 0) { this.estadoLaser = 2; this.timerLaser = 40; Som.tocar('raio'); } }
           else if (--this.timerLaser <= 0) { this.estadoLaser = 0; this.timerLaser = 110 / dif; }
         } else { this.x -= 4.2; this.estadoLaser = 0; }
@@ -1014,11 +1014,14 @@ class Jogo {
     if (!this.emPartida()) this.fundo.hiper = 0;
     if (['MENU', 'HANGAR', 'MAPA', 'CONFIG', 'COMO_JOGAR', 'RECORDES', 'DIARIA', 'HIST', 'CAMARAS'].includes(e)) { Som.tocarMusica('musica_menu'); this.fundo.estrutura(e === 'HANGAR' ? '#ffd24a' : e === 'CAMARAS' ? '#c08cff' : null); }
   }
+  /** Transição em tela cheia por cima de tudo (íris, TV desligando); t = quadro inicial. */
+  telaFx(nome, t = 0) { (this.fxTela ||= []).push({ nome, t }); }
   pausar() { if (this.estado !== 'MORRENDO') { this.pausado = true; this.opcaoPausa = 0; Input.soltarTudo(); } }
 
   // ---------------------------------------------------------- atualização
   atualizar() {
     this.quadro++;
+    if (this.fxTela) { for (const e of this.fxTela) e.t += Fx.lista[e.nome].fps / 60; this.fxTela = this.fxTela.filter(e => e.t < Fx.lista[e.nome].n); }
     if (Input.ap('KeyM')) this.alternarSom();
     if (this.avisoTimer > 0) this.avisoTimer--;
     else if (this.filaAvisos.length) { const [s, c] = this.filaAvisos.shift(); this.avisoTxt = s; this.avisoCor = c; this.avisoTimer = 110; }
@@ -1124,7 +1127,7 @@ class Jogo {
     Object.assign(this, { abatesFase: 0, desafioStatus: 0, maxComboFase: 0, asteroidesFase: 0, danoNaFase: false, bombaNaFase: false, bonusAplicado: false, chefeMorrendo: 0, spawn: 90, chegouChefe: false, chamadoFase: false, aliados: [], toast: null });
     if (this.irParaChefe) { this.abatesFase = this.meta(); this.irParaChefe = false; }
     Som.tocarMusica('musica_fase' + this.fase.n);
-    this.trocar('INTRO_FASE');
+    this.trocar('INTRO_FASE'); this.telaFx('iris', 30);
   }
   dif() { return this.fase.vel * (1 + (this.ciclo - 1) * 0.25) * dm().vel * (this.camara && this.camara.risco ? 1.15 : 1); }
   /** Inimigos até o chefe: cada fase do mapa fica mais longa (fase 1: 35 · fase 15: cerca de 100). Câmaras têm meta própria. */
@@ -1178,7 +1181,7 @@ class Jogo {
           });
         }
         break;
-      case 'MORRENDO': if (t > 150) { if (this.podeContinuar()) this.trocar('CONTINUAR'); else this.finalizarPartida(); } break;
+      case 'MORRENDO': if (t === 82) this.telaFx('tv'); if (t > 150) { if (this.podeContinuar()) this.trocar('CONTINUAR'); else this.finalizarPartida(); } break;
     }
     if (this.lento > 0 && --this.lento === 0) { Som.velocidadeMusica(1); this.aviso('Velocidade normal', [180, 190, 255]); }
     const inimigosAndam = !(this.lento > 0) || this.quadro % 2 === 0;
@@ -1382,7 +1385,7 @@ class Jogo {
     }
   }
   explodirMina(m, porTiro) {
-    this.efeitos.explosao(m.x, m.y, 60); Som.tocar('explosao');
+    this.efeitos.explosao(m.x, m.y, 60); this.efeitos.fx('fogos', m.x, m.y, 0.45); Som.tocar('explosao');
     const n = porTiro ? 6 : 10;
     for (let k = 0; k < n; k++) this.tiroInimigo(m.x, m.y, k * Math.PI * 2 / n + (porTiro ? 0.3 : 0), 2.6 * m.dif, [255, 120, 90]);
   }
@@ -1420,7 +1423,7 @@ class Jogo {
     this.efeitos.texto(i.x, i.y - 18, '+' + ganho, this.mult() > 1 ? [255, 220, 90] : [255, 255, 255], 14);
     this.efeitos.explosao(i.x, i.y, i.tipo.tam); Som.tocar('explosao');
     this.player.ganharEnergia(i.tipo.id === 'FRAGMENTO' || i.tipo.id === 'ENXAME' ? 2 : 6);
-    if (i.tipo.id === 'TANQUE') this.tremer(10);
+    if (i.tipo.id === 'TANQUE') { this.tremer(10); this.efeitos.fx('critico', i.x, i.y, 0.6); }
     if (i.tipo.id === 'MINA') this.explodirMina(i, true);
     if (i.tipo.id === 'ASTEROIDE') {
       this.asteroidesFase++;
@@ -1468,6 +1471,7 @@ class Jogo {
     this.resumo.push([`Vidas restantes (${this.player.vidas})`, '+' + fmt(bv)], ['Estrelas' + (novoRec ? ' (novo!)' : ''), '★'.repeat(est) + '☆'.repeat(3 - est)], ['Coletado até agora', `¢ ${this.creditosRun} · 💎 ${this.cristaisRun}`]);
     this.ev('fases'); if (!this.danoNaFase) this.ev('semdano');
     Dados.salvar();
+    for (const fx of [0.17, 0.83]) this.efeitos.fx('confete', W * fx, H - 140, 2);
     this.trocar('FASE_CONCLUIDA');
   }
   verificarDesafio() {
@@ -1486,10 +1490,10 @@ class Jogo {
   levarDano() {
     const p = this.player;
     if (this.teste && this.teste.inv) return;
-    if (p.escudo) { p.escudo = false; p.timerEscudo = 0; p.invencivel = 90; this.efeitos.anel(p.x, p.y, [100, 200, 255], 80); Som.tocar('acerto'); this.tremer(6); vibrar(30); return; }
+    if (p.escudo) { p.escudo = false; p.timerEscudo = 0; p.invencivel = 90; this.efeitos.anel(p.x, p.y, [100, 200, 255], 80); this.efeitos.fx('escudo', p.x + 26, p.y, 0.55); Som.tocar('acerto'); this.tremer(6); vibrar(30); return; }
     p.vidas--; p.arma = Math.max(1, p.arma - 1); p.invencivel = 150 + (p.invExtra || 0); this.danoNaFase = true; this.bordaDano = 40;
     if (this.fase.desafio.id === 'SEM_DANO') this.falharDesafio();
-    this.combo = 0; this.tremer(18); Som.tocar('dano'); vibrar(120); this.efeitos.explosao(p.x, p.y, 40);
+    this.combo = 0; this.tremer(18); Som.tocar('dano'); vibrar(120); this.efeitos.explosao(p.x, p.y, 40); this.efeitos.fx('critico', p.x, p.y, 0.4);
     if (p.vidas <= 0) { p.vivo = false; this.efeitos.explosao(p.x, p.y, 150); this.flash = 15; this.tremer(30); Som.tocar('bomba'); vibrar([100, 50, 250]); this.estadoAntes = this.estado; this.trocar('MORRENDO'); }
   }
   coletar(u) {
@@ -1577,6 +1581,7 @@ class Jogo {
     }
     if (pressionado && !pressionado.bt && performance.now() < pressionado.ate) { g.fillStyle = 'rgba(255,255,255,.14)'; g.fillRect(pressionado.x, pressionado.y, pressionado.w, pressionado.h); }   // toque em cards e áreas
     if (Dados.prog.codigo && window.__ultimoErro) texto(g, '⚠ ' + window.__ultimoErro.slice(0, 90), 10, H - 34, 14, '#ff6a6a', 'left', true, 600);
+    if (this.fxTela && !this.pausado) for (const e of this.fxTela) Fx.desenhar(g, Object.assign(e, { x: W / 2, y: H / 2, esc: Math.max(W / 320, H / 180) }));   // medido a cada quadro: vale se a tela girar
     if (Config.visual !== 'leve') linhasTv(g);
   }
   desenharPartida(g) {
@@ -1871,7 +1876,7 @@ class Jogo {
           const pode = Dados.podePagar(custo.c, custo.d || 0), falta = Math.max(0, custo.c - Dados.prog.creditos);
           const rot = pode ? `¢${fmt(custo.c)}${custo.d ? ' 💎' + custo.d : ''}` : (falta > 0 ? `falta ¢${fmt(falta)}` : `falta 💎${custo.d - Dados.prog.cristais}`);
           botao(g, rot, bxx, y + 28, bw, 48, () => {
-            if (Dados.melhorar(nave.id, pe.id)) { Som.tocar('compra'); this.efeitos.texto(bxx, y + 10, 'MELHORADO!', [120, 255, 160], 18); vibrar(30); }
+            if (Dados.melhorar(nave.id, pe.id)) { Som.tocar('compra'); this.efeitos.fx('coleta', bxx, y + 10, 0.8); this.efeitos.texto(bxx, y + 10, 'MELHORADO!', [120, 255, 160], 18); vibrar(30); }
           }, { tam: 18, desligado: !pode, cor: pode ? '#fff' : AMARELO, fundo: pode ? 'rgba(40,170,90,.55)' : undefined, borda: pode ? '#6dff9e' : undefined, aoDesligado: () => this.aviso('Jogue mais partidas para juntar moedas e cristais', [255, 160, 120]) });
         } else texto(g, 'MÁX', bxx, y + 36, 22, '#78ff96', 'center');
         if (k < 4) { g.fillStyle = 'rgba(120,150,255,.15)'; g.fillRect(rx + 14, y + 72, rw - 28, 1); }

@@ -1,6 +1,6 @@
 /* Service worker do Hangar Estelar: guarda o jogo para funcionar offline e permite atualizar.
  * Para publicar uma nova versão, basta mudar o número abaixo (e o VERSAO em js/jogo.js). */
-const VERSAO = 'navinha-3.8.0';
+const VERSAO = 'navinha-3.9.0';
 const ARQUIVOS = [
   './',
   'index.html',
@@ -34,6 +34,13 @@ const ARQUIVOS = [
   'assets/fx/implosao.png',
   'assets/fx/plasma.png',
   'assets/fx/teleporte.png',
+  'assets/fx/carga.png',
+  'assets/fx/fogos.png',
+  'assets/fx/critico.png',
+  'assets/fx/escudo.png',
+  'assets/fx/confete.png',
+  'assets/fx/tv.png',
+  'assets/fx/iris.png',
   'assets/musica_fase1.mp3',
   'assets/musica_fase2.mp3',
   'assets/musica_fase3.mp3',

@@ -9,6 +9,13 @@ const Fx = {
   plasma: { w: 202, h: 183, n: 44, cols: 8, fps: 30 },
   implosao: { w: 165, h: 165, n: 46, cols: 8, fps: 30 },
   teleporte: { w: 184, h: 162, n: 45, cols: 8, fps: 15 },
+  carga: { w: 134, h: 158, n: 25, cols: 8, fps: 25 },
+  fogos: { w: 194, h: 274, n: 32, cols: 8, fps: 10 },
+  critico: { w: 176, h: 130, n: 28, cols: 8, fps: 30 },
+  escudo: { w: 116, h: 92, n: 34, cols: 8, fps: 30 },
+  confete: { w: 200, h: 140, n: 103, cols: 8, fps: 30 },
+  tv: { w: 320, h: 180, n: 61, cols: 8, fps: 30 },
+  iris: { w: 320, h: 180, n: 67, cols: 8, fps: 30 },
   },
   img: {},
   carregar() {
